@@ -363,6 +363,7 @@ where
         transaction: Transaction,
         client_addr: Option<SocketAddr>,
     ) -> Result<PlainTransactionInfoResponse, SuiError> {
+        tracing::info!(target: "SF", "safe_client::SafeClient::handle_transaction");
         let _timer = self.metrics.handle_transaction_latency.start_timer();
         let digest = *transaction.digest();
         let response = self
@@ -549,6 +550,7 @@ where
         request: HandleCertificateRequestV3,
         client_addr: Option<SocketAddr>,
     ) -> Result<HandleCertificateResponseV3, SuiError> {
+        tracing::info!(target: "SF", "safe_client::SafeClient::handle_certificate_v3");
         let digest = *request.certificate.digest();
         let _timer = self.metrics.handle_certificate_latency.start_timer();
         let response = self

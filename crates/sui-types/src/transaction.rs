@@ -2709,6 +2709,7 @@ impl SenderSignedData {
     /// Validate untrusted user transaction, including its size, input count, command count, etc.
     /// Returns the certificate serialised bytes size.
     pub fn validity_check(&self, context: &TxValidityCheckContext<'_>) -> Result<usize, SuiError> {
+        tracing::info!(target: "SF", "transaction::SenderSignedData::validity_check");
         // Check that the features used by the user signatures are enabled on the network.
         self.check_user_signature_protocol_compatibility(context.config)?;
 
@@ -3539,10 +3540,13 @@ impl InputObjects {
             .filter_map(|obj| obj.get_owned_objref())
             .collect();
 
-        trace!(
-            num_mutable_objects = owned_objects.len(),
-            "Checked locks and found mutable objects"
-        );
+        if !owned_objects.is_empty() {
+            tracing::info!(
+                target: "SF",
+                num_mutable_objects = owned_objects.len(),
+                "Checked locks and found mutable objects"
+            );
+        }
 
         owned_objects
     }

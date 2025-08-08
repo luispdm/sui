@@ -207,6 +207,7 @@ where
         client_addr: Option<SocketAddr>,
     ) -> Result<(ExecuteTransactionResponseV3, IsTransactionExecutedLocally), QuorumDriverError>
     {
+        info!(target: "SF", "transaction_orchestrator::TransactionOrchestrator::execute_transaction_block");
         let transaction = request.transaction.clone();
         let (response, mut executed_locally) = self
             .execute_transaction_with_effects_waiting(request, client_addr)
@@ -285,6 +286,7 @@ where
         request: ExecuteTransactionRequestV3,
         client_addr: Option<SocketAddr>,
     ) -> Result<(QuorumTransactionResponse, IsTransactionExecutedLocally), QuorumDriverError> {
+        info!(target: "SF", "transaction_orchestrator::TransactionOrchestrator::execute_transaction_with_effects_waiting");
         let epoch_store = self.validator_state.load_epoch_store_one_call_per_task();
         let transaction = request.transaction.clone();
         let tx_digest = *transaction.digest();
@@ -348,7 +350,8 @@ where
                 }
                 // Local effects might be available
                 local_effects_result = &mut local_effects_future => {
-                    debug!(
+                    info!(
+                        target: "SF",
                         ?tx_digest,
                         "Effects became available while execution was running"
                     );
@@ -424,6 +427,7 @@ where
         client_addr: Option<SocketAddr>,
         using_td: Arc<AtomicBool>,
     ) -> Result<QuorumTransactionResponse, QuorumDriverError> {
+        info!(target: "SF", "transaction_orchestrator::TransactionOrchestrator::execute_transaction_impl");
         let verified_transaction = epoch_store
             .verify_transaction(request.transaction.clone())
             .map_err(QuorumDriverError::InvalidUserSignature)?;
@@ -618,6 +622,7 @@ where
         request: ExecuteTransactionRequestV3,
         client_addr: Option<SocketAddr>,
     ) -> SuiResult<impl Future<Output = SuiResult<QuorumDriverResult>> + '_> {
+        info!(target: "SF", "transaction_orchestrator::TransactionOrchestrator::submit_with_quorum_driver");
         let tx_digest = *transaction.digest();
         let ticket = self.notifier.register_one(&tx_digest);
         // TODO(william) need to also write client adr to pending tx log below
@@ -627,7 +632,7 @@ where
             .write_pending_transaction_maybe(&transaction)
             .await?
         {
-            debug!(?tx_digest, "no pending request in flight, submitting.");
+            info!(target: "SF", ?tx_digest, "transaction_orchestrator::TransactionOrchestrator::submit_with_quorum_driver no pending request in flight, submitting.");
             self.quorum_driver()
                 .submit_transaction_no_ticket(request.clone(), client_addr)
                 .await?;

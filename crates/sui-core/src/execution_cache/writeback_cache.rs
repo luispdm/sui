@@ -2191,6 +2191,7 @@ impl ExecutionCacheWrite for WritebackCache {
         tx_digest: TransactionDigest,
         signed_transaction: Option<VerifiedSignedTransaction>,
     ) -> SuiResult {
+        tracing::info!(target: "SF", "writeback_cache::WritebackCache::acquire_transaction_locks");
         self.object_locks.acquire_transaction_locks(
             self,
             epoch_store,

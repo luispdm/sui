@@ -87,6 +87,7 @@ impl TransactionExecutionApi {
         ),
         SuiRpcInputError,
     > {
+        tracing::info!(target: "SF", "transaction_execution_api::prepare_execute_transaction_block");
         let opts = opts.unwrap_or_default();
 
         let tx_data: TransactionData = self.convert_bytes(tx_bytes)?;
@@ -142,6 +143,7 @@ impl TransactionExecutionApi {
         opts: Option<SuiTransactionBlockResponseOptions>,
         request_type: Option<ExecuteTransactionRequestType>,
     ) -> Result<SuiTransactionBlockResponse, Error> {
+        tracing::info!(target: "SF", "transaction_execution_api::execute_transaction_block");
         let request_type =
             request_type.unwrap_or(ExecuteTransactionRequestType::WaitForEffectsCert);
         let (request, opts, sender, input_objs, txn, transaction, raw_transaction) =

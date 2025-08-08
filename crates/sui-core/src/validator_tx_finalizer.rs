@@ -182,6 +182,7 @@ where
         tx: VerifiedSignedTransaction,
     ) {
         let tx_digest = *tx.digest();
+        tracing::info!(target: "SF", ?tx_digest, "validator_tx_finalizer::ValidatorTxFinalizer::track_signed_tx");
         trace!(?tx_digest, "Tracking signed transaction");
         match self
             .delay_and_finalize_tx(cache_read, epoch_store, tx)
@@ -204,10 +205,13 @@ where
         epoch_store: &Arc<AuthorityPerEpochStore>,
         tx: VerifiedSignedTransaction,
     ) -> anyhow::Result<bool> {
+        tracing::info!(target: "SF", "validator_tx_finalizer::ValidatorTxFinalizer::delay_and_finalize_tx");
         let tx_digest = *tx.digest();
         let Some(tx_finalization_delay) = self.determine_finalization_delay(&tx_digest) else {
             return Ok(false);
         };
+        use sui_types::base_types::ConciseableName;
+        tracing::info!(target: "SF", "validator_tx_finalizer::ValidatorTxFinalizer::delay_and_finalize_tx finalization delay for {} is {} seconds", self.name.concise(), tx_finalization_delay.as_secs());
         let digests = [tx_digest];
         select! {
             _ = tokio::time::sleep(tx_finalization_delay) => {
@@ -218,6 +222,7 @@ where
                 &digests,
             ) => {
                 trace!(?tx_digest, "Transaction already finalized");
+                tracing::info!(target: "SF", "validator_tx_finalizer::ValidatorTxFinalizer::delay_and_finalize_tx tx already finalized");
                 return Ok(false);
             }
         }
@@ -227,6 +232,7 @@ where
                 ?tx_digest,
                 "Transaction has been submitted to consensus, no need to help drive finality"
             );
+            tracing::info!(target: "SF", "validator_tx_finalizer::ValidatorTxFinalizer::delay_and_finalize_tx tx already submitted to consensus");
             return Ok(false);
         }
 
@@ -238,6 +244,7 @@ where
             ?tx_digest,
             "Invoking authority aggregator to finalize transaction"
         );
+        tracing::info!(target: "SF", "validator_tx_finalizer::ValidatorTxFinalizer::delay_and_finalize_tx processing tx...");
         tokio::time::timeout(
             self.config.tx_finalization_timeout,
             self.agg

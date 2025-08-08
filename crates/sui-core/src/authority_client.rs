@@ -190,6 +190,7 @@ impl AuthorityAPI for NetworkAuthorityClient {
         transaction: Transaction,
         client_addr: Option<SocketAddr>,
     ) -> Result<HandleTransactionResponse, SuiError> {
+        tracing::info!(target: "SF", "authority_client::NetworkAuthorityClient::handle_transaction");
         let mut request = transaction.into_request();
         insert_metadata(&mut request, client_addr);
 

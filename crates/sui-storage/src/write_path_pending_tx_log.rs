@@ -53,6 +53,7 @@ impl WritePathPendingTransactionLog {
         &self,
         tx: &VerifiedTransaction,
     ) -> SuiResult<IsFirstRecord> {
+        tracing::info!(target: "SF", "write_path_pending_tx_log::write_pending_transaction_maybe");
         let tx_digest = tx.digest();
         let _guard = self.mutex_table.acquire_lock(*tx_digest);
         if self.pending_transactions.logs.contains_key(tx_digest)? {

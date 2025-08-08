@@ -117,6 +117,7 @@ impl<A: Clone> QuorumDriver<A> {
     }
 
     async fn enqueue_task(&self, task: QuorumDriverTask) -> SuiResult<()> {
+        info!(target: "SF", "quorum_driver::QuorumDriver::enqueue_task");
         self.task_sender
             .send(task.clone())
             .await
@@ -272,6 +273,7 @@ where
         request: ExecuteTransactionRequestV3,
         client_addr: Option<SocketAddr>,
     ) -> SuiResult<()> {
+        info!(target: "SF", "quorum_driver::QuorumDriver::submit_transaction_no_ticket");
         let tx_digest = request.transaction.digest();
         debug!(
             ?tx_digest,
@@ -296,6 +298,7 @@ where
         transaction: Transaction,
         client_addr: Option<SocketAddr>,
     ) -> Result<ProcessTransactionResult, Option<QuorumDriverError>> {
+        info!(target: "SF", "quorum_driver::QuorumDriver::process_transaction");
         let auth_agg = self.validators.load();
         let _tx_guard = GaugeGuard::acquire(&auth_agg.metrics.inflight_transactions);
         let tx_digest = *transaction.digest();
@@ -387,6 +390,7 @@ where
         request: HandleCertificateRequestV3,
         client_addr: Option<SocketAddr>,
     ) -> Result<QuorumDriverResponse, Option<QuorumDriverError>> {
+        info!(target: "SF", "quorum_driver::QuorumDriver::process_certificate");
         let auth_agg = self.validators.load();
         let _cert_guard = GaugeGuard::acquire(&auth_agg.metrics.inflight_certificates);
         let tx_digest = *request.certificate.digest();
@@ -505,6 +509,7 @@ where
         request: ExecuteTransactionRequestV3,
         client_addr: Option<SocketAddr>,
     ) -> SuiResult<()> {
+        info!(target: "SF", "quorum_driver::QuorumDriverHandler::submit_transaction_no_ticket");
         self.quorum_driver
             .submit_transaction_no_ticket(request, client_addr)
             .await
@@ -586,6 +591,7 @@ where
     /// are performed in this call.
     #[instrument(level = "trace", parent = task.trace_span.as_ref().and_then(|s| s.id()), skip_all)]
     async fn process_task(quorum_driver: Arc<QuorumDriver<A>>, task: QuorumDriverTask) {
+        info!(target: "SF", "quorum_driver::QuorumDriverHandler::process_task");
         debug!(?task, "Quorum Driver processing task");
         let QuorumDriverTask {
             request,
@@ -752,6 +758,7 @@ where
         mut task_receiver: Receiver<QuorumDriverTask>,
         metrics: Arc<QuorumDriverMetrics>,
     ) {
+        info!(target: "SF", "quorum_driver::QuorumDriverHandler::task_queue_processor");
         let limit = Arc::new(Semaphore::new(TASK_QUEUE_SIZE));
         while let Some(task) = task_receiver.recv().await {
             let task_queue_span =

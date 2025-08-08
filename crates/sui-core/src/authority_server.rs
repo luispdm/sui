@@ -456,6 +456,7 @@ impl ValidatorService {
         &self,
         request: tonic::Request<Transaction>,
     ) -> WrappedServiceResponse<HandleTransactionResponse> {
+        tracing::info!(target: "SF", "authority_server::ValidatorService::handle_transaction");
         let Self {
             state,
             consensus_adapter,
@@ -1133,6 +1134,7 @@ impl ValidatorService {
         &self,
         request: tonic::Request<HandleCertificateRequestV3>,
     ) -> WrappedServiceResponse<HandleCertificateResponseV3> {
+        tracing::info!(target: "SF", "authority_server::ValidatorService::handle_certificate_v3_impl"); // not called, why?
         let epoch_store = self.state.load_epoch_store_one_call_per_task();
         let request = request.into_inner();
         request

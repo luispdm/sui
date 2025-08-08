@@ -1081,6 +1081,7 @@ impl AuthorityState {
         sign: bool,
         epoch_store: &Arc<AuthorityPerEpochStore>,
     ) -> SuiResult<Option<VerifiedSignedTransaction>> {
+        tracing::info!(target: "SF", "authority::AuthorityState::handle_transaction_impl");
         // Ensure that validator cannot reconfigure while we are signing the tx
         let _execution_lock = self.execution_lock_for_signing()?;
 
@@ -1122,6 +1123,7 @@ impl AuthorityState {
         epoch_store: &Arc<AuthorityPerEpochStore>,
         transaction: VerifiedTransaction,
     ) -> SuiResult<HandleTransactionResponse> {
+        tracing::info!(target: "SF", "authority::AuthorityState::handle_transaction");
         let tx_digest = *transaction.digest();
         debug!("handle_transaction");
 
@@ -1166,6 +1168,7 @@ impl AuthorityState {
             Ok(Some(s)) => {
                 if self.is_validator(epoch_store) {
                     if let Some(validator_tx_finalizer) = &self.validator_tx_finalizer {
+                        tracing::info!(target: "SF", "authority::AuthorityState::handle_sign_transaction {} tracks the tx for finalization", self.name.concise());
                         let tx = s.clone();
                         let validator_tx_finalizer = validator_tx_finalizer.clone();
                         let cache_reader = self.get_transaction_cache_reader().clone();
@@ -1438,6 +1441,7 @@ impl AuthorityState {
         execution_env: ExecutionEnv,
         epoch_store: &Arc<AuthorityPerEpochStore>,
     ) -> SuiResult<(TransactionEffects, Option<ExecutionError>)> {
+        tracing::info!(target: "SF", "authority::AuthorityState::try_execute_immediately");
         let _scope = monitored_scope("Execution::try_execute_immediately");
         let _metrics_guard = self.metrics.internal_execution_latency.start_timer();
 

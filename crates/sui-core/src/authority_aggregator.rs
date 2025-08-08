@@ -818,6 +818,7 @@ where
         client_addr: Option<SocketAddr>,
     ) -> Result<ProcessTransactionResult, AggregatorProcessTransactionError> {
         // Now broadcast the transaction to all authorities.
+        tracing::info!(target: "SF", "authority_aggregator::AuthorityAggregator::process_transaction");
         let tx_digest = transaction.digest();
         debug!(
             tx_digest = ?tx_digest,
@@ -1115,6 +1116,7 @@ where
             }
             InsertResult::Failed { error } => Err(error),
             InsertResult::QuorumReached(cert_sig) => {
+                tracing::info!(target: "SF", "authority_aggregator::AuthorityAggregator::handle_transaction_response_with_signed quorum reached");
                 let certificate =
                     CertifiedTransaction::new_from_data_and_sig(plain_tx.into_data(), cert_sig);
                 certificate.verify_committee_sigs_only(&self.committee)?;
@@ -1252,6 +1254,7 @@ where
         request: HandleCertificateRequestV3,
         client_addr: Option<SocketAddr>,
     ) -> Result<QuorumDriverResponse, AggregatorProcessCertificateError> {
+        tracing::info!(target: "SF", "authority_aggregator::AuthorityAggregator::process_certificate");
         let state = ProcessCertificateState {
             effects_map: MultiStakeAggregator::new(self.committee.clone()),
             non_retryable_stake: 0,
@@ -1467,6 +1470,7 @@ where
         response: SuiResult<HandleCertificateResponseV3>,
         name: AuthorityName,
     ) -> SuiResult<Option<QuorumDriverResponse>> {
+        tracing::info!(target: "SF", "authority_aggregator::AuthorityAggregator::handle_process_certificate_response");
         match response {
             Ok(HandleCertificateResponseV3 {
                 effects: signed_effects,
