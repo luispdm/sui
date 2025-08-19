@@ -19,7 +19,7 @@ use tracing::{info, warn};
 
 /// The minimum and maximum protocol versions supported by this build.
 const MIN_PROTOCOL_VERSION: u64 = 1;
-const MAX_PROTOCOL_VERSION: u64 = 91;
+const MAX_PROTOCOL_VERSION: u64 = 93;
 
 // Record history of protocol version allocations here:
 //
@@ -254,7 +254,8 @@ const MAX_PROTOCOL_VERSION: u64 = 91;
 // Version 90: Standard library improvements.
 //             Enable `debug_fatal` on Move invariant violations.
 //             Enable passkey and passkey inside multisig for mainnet.
-// Version 91: Minor changes in Sui Framework.
+// Version 91: Minor changes in Sui Framework. Include CheckpointDigest in consensus dedup key for checkpoint signatures (V2).
+// Version 92: Enable CheckpointDigest in consensus dedup key for checkpoint signatures.
 
 #[derive(Copy, Clone, Debug, Hash, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ProtocolVersion(u64);
@@ -451,6 +452,10 @@ struct FeatureFlags {
     // Enable receiving sent objects
     #[serde(skip_serializing_if = "is_false")]
     receive_objects: bool,
+
+    // If true, include CheckpointDigest in consensus dedup key for checkpoint signatures (V2).
+    #[serde(skip_serializing_if = "is_false")]
+    consensus_checkpoint_signature_key_includes_digest: bool,
 
     // Enable random beacon protocol
     #[serde(skip_serializing_if = "is_false")]
@@ -2171,6 +2176,11 @@ impl ProtocolConfig {
     pub fn per_command_shared_object_transfer_rules(&self) -> bool {
         self.feature_flags.per_command_shared_object_transfer_rules
     }
+
+    pub fn consensus_checkpoint_signature_key_includes_digest(&self) -> bool {
+        self.feature_flags
+            .consensus_checkpoint_signature_key_includes_digest
+    }
 }
 
 #[cfg(not(msim))]
@@ -3880,7 +3890,7 @@ impl ProtocolConfig {
                     cfg.feature_flags
                         .ignore_execution_time_observations_after_certs_closed = true;
 
-                    // Disable backwards compatible behavior in exeuction time estimator for
+                    // Disable backwards compatible behavior in execution time estimator for
                     // new protocol version.
                     cfg.feature_flags.per_object_congestion_control_mode =
                         PerObjectCongestionControlMode::ExecutionTimeEstimate(
@@ -3917,6 +3927,13 @@ impl ProtocolConfig {
                 91 => {
                     cfg.feature_flags.per_command_shared_object_transfer_rules = true;
                 }
+                92 => {
+                    cfg.feature_flags.per_command_shared_object_transfer_rules = false;
+                }
+                93 => {
+                    cfg.feature_flags
+                        .consensus_checkpoint_signature_key_includes_digest = true;
+                }
                 // Use this template when making changes:
                 //
                 //     // modify an existing constant.
@@ -3937,7 +3954,9 @@ impl ProtocolConfig {
             cfg.consensus_gc_depth = Some(5);
 
             // Trigger checkpoint splitting more often.
-            cfg.max_transactions_per_checkpoint = Some(10);
+            // cfg.max_transactions_per_checkpoint = Some(10);
+            // FIXME: Re-introduce this once we resolve the checkpoint splitting issue
+            // in the quarantine output.
         }
 
         cfg
@@ -3975,7 +3994,7 @@ impl ProtocolConfig {
             max_back_edges_per_function,
             max_back_edges_per_module,
             max_basic_blocks_in_script: None,
-            max_idenfitier_len: self.max_move_identifier_len_as_option(), // Before protocol version 9, there was no limit
+            max_identifier_len: self.max_move_identifier_len_as_option(), // Before protocol version 9, there was no limit
             disallow_self_identifier: self.feature_flags.disallow_self_identifier,
             allow_receiving_object_id: self.allow_receiving_object_id(),
             reject_mutable_random_on_entry_functions: self
