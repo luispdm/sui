@@ -117,6 +117,9 @@ pub async fn execution_process(
 
             fail_point_async!("transaction_execution_delay");
 
+            if !certificate.is_system_tx() {
+                tracing::info!(target: "SF", "execution_driver::execution_process trying to execute transaction");
+            }
             match authority.try_execute_immediately(
                 &certificate,
                 execution_env,

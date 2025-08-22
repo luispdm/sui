@@ -120,6 +120,7 @@ impl ConsensusHandlerInitializer {
     }
 
     pub(crate) fn new_consensus_handler(&self) -> ConsensusHandler<CheckpointService> {
+        tracing::info!(target: "SF", "consensus_handler::ConsensusHandlerInitializer::new_consensus_handler");
         let new_epoch_start_state = self.epoch_store.epoch_start_state();
         let consensus_committee = new_epoch_start_state.get_consensus_committee();
 

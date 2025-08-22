@@ -1471,6 +1471,7 @@ impl AuthorityState {
         certificate: &VerifiedCertificate,
         epoch_store: &Arc<AuthorityPerEpochStore>,
     ) -> SuiResult<TransactionEffects> {
+        tracing::info!(target: "SF", "authority::AuthorityState::wait_for_certificate_execution");
         self.wait_for_transaction_execution(
             &VerifiedExecutableTransaction::new_from_certificate(certificate.clone()),
             epoch_store,

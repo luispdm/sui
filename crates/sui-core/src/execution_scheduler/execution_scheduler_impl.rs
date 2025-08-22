@@ -211,6 +211,9 @@ impl ExecutionScheduler {
         execution_env: ExecutionEnv,
         enqueue_time: Instant,
     ) {
+        if !cert.is_system_tx() {
+            tracing::info!(target: "SF", "execution_scheduler_impl::ExecutionScheduler::send_transaction_for_execution");
+        }
         let pending_cert = PendingCertificate {
             certificate: cert.clone(),
             execution_env,
@@ -481,6 +484,9 @@ impl ExecutionSchedulerAPI for ExecutionScheduler {
                 });
 
         for (cert, execution_env) in pending_certs {
+            if !cert.is_system_tx() {
+                tracing::info!(target: "SF", "execution_scheduler_impl::ExecutionScheduler::enqueue_transactions");
+            }
             let scheduler = self.clone();
             let epoch_store = epoch_store.clone();
             spawn_monitored_task!(

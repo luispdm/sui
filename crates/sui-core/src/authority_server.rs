@@ -880,6 +880,7 @@ impl ValidatorService {
         epoch_store: &Arc<AuthorityPerEpochStore>,
         wait_for_effects: bool,
     ) -> Result<(Option<Vec<ExecutedData>>, Weight), tonic::Status> {
+        tracing::info!(target: "SF", "authority_server::ValidatorService::handle_submit_to_consensus");
         let consensus_transactions: Vec<_> = consensus_transactions.into();
         {
             // code block within reconfiguration lock
@@ -912,6 +913,7 @@ impl ValidatorService {
         if !wait_for_effects {
             // It is useful to enqueue owned object transaction for execution locally,
             // even when we are not returning effects to user
+            tracing::info!(target: "SF", "authority_server::ValidatorService::handle_submit_to_consensus don't wait for effects => enqueue");
             let fast_path_certificates = consensus_transactions
                 .iter()
                 .filter_map(|tx| {
