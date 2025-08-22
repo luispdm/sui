@@ -1084,6 +1084,7 @@ impl ValidatorService {
         &self,
         request: tonic::Request<CertifiedTransaction>,
     ) -> WrappedServiceResponse<HandleCertificateResponseV2> {
+        tracing::info!(target: "SF", "authority_server::ValidatorService::handle_certificate_v2_impl");
         let epoch_store = self.state.load_epoch_store_one_call_per_task();
         let certificate = request.into_inner();
         certificate.validity_check(&epoch_store.tx_validity_check_context())?;
@@ -1118,7 +1119,7 @@ impl ValidatorService {
         &self,
         request: tonic::Request<HandleCertificateRequestV3>,
     ) -> WrappedServiceResponse<HandleCertificateResponseV3> {
-        tracing::info!(target: "SF", "authority_server::ValidatorService::handle_certificate_v3_impl"); // not called, why?
+        tracing::info!(target: "SF", "authority_server::ValidatorService::handle_certificate_v3_impl");
         let epoch_store = self.state.load_epoch_store_one_call_per_task();
         let request = request.into_inner();
         request

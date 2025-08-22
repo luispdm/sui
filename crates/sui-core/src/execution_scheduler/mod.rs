@@ -112,6 +112,7 @@ impl ExecutionSchedulerWrapper {
         // Execution scheduler is enabled by default unless ENABLE_TRANSACTION_MANAGER is explicitly set.
         let enable_execution_scheduler = std::env::var("ENABLE_TRANSACTION_MANAGER").is_err();
         if enable_execution_scheduler {
+            tracing::info!(target: "SF", "authority::ExecutionSchedulerWrapper::new using ExecutionScheduler");
             let enable_accumulators = epoch_store.accumulators_enabled();
             Self::ExecutionScheduler(ExecutionScheduler::new(
                 object_cache_read,
@@ -122,6 +123,7 @@ impl ExecutionSchedulerWrapper {
                 metrics,
             ))
         } else {
+            tracing::info!(target: "SF", "authority::ExecutionSchedulerWrapper::new using TransactionManager");
             Self::TransactionManager(TransactionManager::new(
                 object_cache_read,
                 transaction_cache_read,

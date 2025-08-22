@@ -399,6 +399,7 @@ where
         certificate: CertifiedTransaction,
         client_addr: Option<SocketAddr>,
     ) -> Result<HandleCertificateResponseV2, SuiError> {
+        tracing::info!(target: "SF", "safe_client::SafeClient::handle_certificate_v2");
         let digest = *certificate.digest();
         let _timer = self.metrics.handle_certificate_latency.start_timer();
         let response = self

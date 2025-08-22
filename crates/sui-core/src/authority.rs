@@ -1567,7 +1567,9 @@ impl AuthorityState {
         mut execution_env: ExecutionEnv,
         epoch_store: &Arc<AuthorityPerEpochStore>,
     ) -> SuiResult<(TransactionEffects, Option<ExecutionError>)> {
-        tracing::info!(target: "SF", "authority::AuthorityState::try_execute_immediately");
+        if !certificate.is_system_tx() {
+            tracing::info!(target: "SF", "authority::AuthorityState::try_execute_immediately");
+        }
         let _scope = monitored_scope("Execution::try_execute_immediately");
         let _metrics_guard = self.metrics.internal_execution_latency.start_timer();
 
@@ -1850,6 +1852,9 @@ impl AuthorityState {
         Vec<ExecutionTiming>,
         Option<ExecutionError>,
     )> {
+        if !certificate.is_system_tx() {
+            tracing::info!(target: "SF", "authority::AuthorityState::process_certificate");
+        }
         let _scope = monitored_scope("Execution::process_certificate");
         let tx_digest = *certificate.digest();
 
@@ -1863,6 +1868,9 @@ impl AuthorityState {
         let expected_effects_digest = match execution_env.expected_effects_digest {
             Some(expected_effects_digest) => Some(expected_effects_digest),
             None => {
+                if !certificate.is_system_tx() {
+                    tracing::info!(target: "SF", "authority::AuthorityState::process_certificate no expected effects digest found");
+                }
                 // We could be re-executing a previously executed but uncommitted transaction, perhaps after
                 // restarting with a new binary. In this situation, if we have published an effects signature,
                 // we must be sure not to equivocate.
@@ -1870,6 +1878,10 @@ impl AuthorityState {
                 epoch_store.get_signed_effects_digest(&tx_digest)?
             }
         };
+
+        if expected_effects_digest.is_some() && !certificate.is_system_tx() {
+                tracing::info!(target: "SF", "authority::AuthorityState::process_certificate expected effects digest found in execution env");
+        }
 
         fail_point_if!("correlated-crash-process-certificate", || {
             if sui_simulator::random::deterministic_probability_once(&tx_digest, 0.01) {
@@ -2017,6 +2029,9 @@ impl AuthorityState {
         Vec<ExecutionTiming>,
         Option<ExecutionError>,
     )> {
+        if !certificate.is_system_tx() {
+            tracing::info!(target: "SF", "authority::AuthorityState::execute_certificate");
+        }
         let _scope = monitored_scope("Execution::prepare_certificate");
         let _metrics_guard = self.metrics.prepare_certificate_latency.start_timer();
         let prepare_certificate_start_time = tokio::time::Instant::now();
