@@ -63,7 +63,7 @@ use tap::TapFallible;
 use tokio::sync::oneshot;
 use tokio::time::timeout;
 use tonic::metadata::{Ascii, MetadataValue};
-use tracing::{debug, error, error_span, info, Instrument};
+use tracing::{debug, error, error_span, info, instrument, Instrument};
 
 use crate::{
     authority::{
@@ -510,7 +510,7 @@ impl ValidatorService {
         let tx_digest = transaction.digest();
 
         // Enable Trace Propagation across spans/processes using tx_digest
-        let span = error_span!("validator_state_process_tx", ?tx_digest);
+        let span = error_span!("ValidatorService::validator_state_process_tx", ?tx_digest);
 
         let info = state
             .handle_transaction(&epoch_store, transaction.clone())
@@ -531,6 +531,7 @@ impl ValidatorService {
         Ok((tonic::Response::new(info), Weight::zero()))
     }
 
+    #[instrument(name= "ValidatorService::handle_submit_transaction", level = "error", skip_all, err(level = "debug"), fields(tx_digest = ?tracing::field::Empty))]
     async fn handle_submit_transaction(
         &self,
         request: tonic::Request<RawSubmitTxRequest>,
@@ -594,10 +595,9 @@ impl ValidatorService {
             })?
         };
 
-        // Enable Trace Propagation across spans/processes using tx_digest
+        // Populate the tx_digest to the trace
         let tx_digest = transaction.digest();
-        let span =
-            error_span!("ValidatorService::handle_submit_transaction", tx_digest = ?tx_digest);
+        tracing::Span::current().record("tx_digest", tracing::field::debug(&tx_digest));
 
         // Return the executed data if the transaction has already been executed.
         if let Some(effects) = self
@@ -665,7 +665,6 @@ impl ValidatorService {
             )],
             &epoch_store,
         )
-        .instrument(span)
         .await
         .and_then(|(mut resp, spam_weight)| {
             // Only submitting a single tx so we should get back a single consensus position
@@ -835,6 +834,12 @@ impl ValidatorService {
         Ok((responses, weight))
     }
 
+    #[instrument(
+        name = "ValidatorService::handle_submit_to_consensus_for_position",
+        level = "debug",
+        skip_all,
+        err
+    )]
     async fn handle_submit_to_consensus_for_position(
         &self,
         consensus_transactions: NonEmpty<ConsensusTransaction>,
@@ -1060,7 +1065,8 @@ impl ValidatorService {
         let certificate = request.into_inner();
         certificate.validity_check(&epoch_store.tx_validity_check_context())?;
 
-        let span = error_span!("submit_certificate", tx_digest = ?certificate.digest());
+        let span =
+            error_span!("ValidatorService::submit_certificate", tx_digest = ?certificate.digest());
         self.handle_certificates(
             nonempty![certificate],
             true,
@@ -1091,7 +1097,7 @@ impl ValidatorService {
         let certificate = request.into_inner();
         certificate.validity_check(&epoch_store.tx_validity_check_context())?;
 
-        let span = error_span!("handle_certificate", tx_digest = ?certificate.digest());
+        let span = error_span!("ValidatorService::handle_certificate_v2", tx_digest = ?certificate.digest());
         self.handle_certificates(
             nonempty![certificate],
             true,
@@ -1128,7 +1134,7 @@ impl ValidatorService {
             .certificate
             .validity_check(&epoch_store.tx_validity_check_context())?;
 
-        let span = error_span!("handle_certificate_v3", tx_digest = ?request.certificate.digest());
+        let span = error_span!("ValidatorService::handle_certificate_v3", tx_digest = ?request.certificate.digest());
         self.handle_certificates(
             nonempty![request.certificate],
             request.include_events,
@@ -1176,7 +1182,7 @@ impl ValidatorService {
         ))
     }
 
-    // TODO(fastpath): Add metrics.
+    #[instrument(name= "ValidatorService::wait_for_effects_response", level = "error", skip_all, err(level = "debug"), fields(consensus_position = ?request.consensus_position, fast_path_effects = tracing::field::Empty))]
     async fn wait_for_effects_response(
         &self,
         request: WaitForEffectsRequest,
@@ -1212,6 +1218,7 @@ impl ValidatorService {
                     "AuthorityServer::wait_for_effects::notify_read_executed_effects_finalized",
                     &tx_digests,
                 ) => {
+                tracing::Span::current().record("fast_path_effects", false);
                 let effects = effects.pop().unwrap();
                 let details = if request.include_details {
                     Some(self.complete_executed_data(effects.clone(), None).await?)
@@ -1226,11 +1233,13 @@ impl ValidatorService {
             }
 
             fastpath_response = fastpath_effects_future => {
+                tracing::Span::current().record("fast_path_effects", true);
                 fastpath_response
             }
         }
     }
 
+    #[instrument(level = "error", skip_all, err)]
     async fn wait_for_fastpath_effects(
         &self,
         consensus_position: ConsensusPosition,
@@ -1496,7 +1505,7 @@ impl ValidatorService {
             total_size_bytes
         );
 
-        let span = error_span!("handle_soft_bundle_certificates_v3");
+        let span = error_span!("ValidatorService::handle_soft_bundle_certificates_v3");
         self.handle_certificates(
             certificates,
             request.include_events,
