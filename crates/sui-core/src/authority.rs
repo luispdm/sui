@@ -1853,9 +1853,6 @@ impl AuthorityState {
         Vec<ExecutionTiming>,
         Option<ExecutionError>,
     )> {
-        if !certificate.is_system_tx() {
-            tracing::info!(target: "SF", "authority::AuthorityState::process_certificate");
-        }
         let _scope = monitored_scope("Execution::process_certificate");
         let tx_digest = *certificate.digest();
 
@@ -1869,9 +1866,6 @@ impl AuthorityState {
         let expected_effects_digest = match execution_env.expected_effects_digest {
             Some(expected_effects_digest) => Some(expected_effects_digest),
             None => {
-                if !certificate.is_system_tx() {
-                    tracing::info!(target: "SF", "authority::AuthorityState::process_certificate no expected effects digest found");
-                }
                 // We could be re-executing a previously executed but uncommitted transaction, perhaps after
                 // restarting with a new binary. In this situation, if we have published an effects signature,
                 // we must be sure not to equivocate.
@@ -1880,8 +1874,12 @@ impl AuthorityState {
             }
         };
 
-        if expected_effects_digest.is_some() && !certificate.is_system_tx() {
+        if !certificate.is_system_tx() {
+            if expected_effects_digest.is_some() {
                 tracing::info!(target: "SF", "authority::AuthorityState::process_certificate expected effects digest found in execution env");
+            } else {
+                tracing::info!(target: "SF", "authority::AuthorityState::process_certificate no expected effects digest found");
+            }
         }
 
         fail_point_if!("correlated-crash-process-certificate", || {
