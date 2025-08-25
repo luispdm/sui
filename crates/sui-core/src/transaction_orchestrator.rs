@@ -662,7 +662,6 @@ where
             .write_pending_transaction_maybe(&transaction)
             .await?
         {
-            info!(target: "SF", ?tx_digest, "transaction_orchestrator::TransactionOrchestrator::submit_with_quorum_driver no pending request in flight, submitting.");
             self.quorum_driver()
                 .submit_transaction_no_ticket(request.clone(), client_addr)
                 .await?;

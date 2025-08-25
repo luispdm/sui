@@ -3537,13 +3537,10 @@ impl InputObjects {
             .filter_map(|obj| obj.get_owned_objref())
             .collect();
 
-        if !owned_objects.is_empty() {
-            tracing::info!(
-                target: "SF",
-                num_mutable_objects = owned_objects.len(),
-                "Checked locks and found mutable objects"
-            );
-        }
+        trace!(
+            num_mutable_objects = owned_objects.len(),
+            "Checked locks and found mutable objects"
+        );
 
         owned_objects
     }
