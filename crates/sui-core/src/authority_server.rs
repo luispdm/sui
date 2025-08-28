@@ -65,6 +65,7 @@ use tokio::time::timeout;
 use tonic::metadata::{Ascii, MetadataValue};
 use tracing::{debug, error, error_span, info, instrument, Instrument};
 
+use crate::consensus_adapter::ConnectionMonitorStatusForTests;
 use crate::{
     authority::{
         authority_per_epoch_store::AuthorityPerEpochStore,
@@ -83,9 +84,6 @@ use crate::{
     authority::{consensus_tx_status_cache::ConsensusTxStatus, AuthorityState},
     consensus_adapter::{ConsensusAdapter, ConsensusAdapterMetrics},
     traffic_controller::{parse_ip, policies::TrafficTally, TrafficController},
-};
-use crate::{
-    consensus_adapter::ConnectionMonitorStatusForTests, execution_scheduler::ExecutionSchedulerAPI,
 };
 use nonempty::{nonempty, NonEmpty};
 use sui_config::local_ip_utils::new_local_tcp_address_for_testing;
@@ -610,6 +608,7 @@ impl ValidatorService {
                 let executed_resp = SubmitTxResponse::Executed {
                     effects_digest,
                     details: Some(executed_data),
+                    fast_path: false,
                 };
                 let executed_resp = executed_resp.try_into()?;
                 return Ok((tonic::Response::new(executed_resp), Weight::zero()));
@@ -645,6 +644,7 @@ impl ValidatorService {
                         let executed_resp = SubmitTxResponse::Executed {
                             effects_digest,
                             details: Some(executed_data),
+                            fast_path: false,
                         };
                         let executed_resp = executed_resp.try_into()?;
                         return Ok((tonic::Response::new(executed_resp), Weight::zero()));
@@ -1229,6 +1229,7 @@ impl ValidatorService {
                 Ok(WaitForEffectsResponse::Executed {
                     effects_digest: effects.digest(),
                     details,
+                    fast_path: false,
                 })
             }
 
@@ -1327,6 +1328,7 @@ impl ValidatorService {
                     return Ok(WaitForEffectsResponse::Executed {
                         effects_digest: effects.digest(),
                         details,
+                        fast_path: current_status == Some(ConsensusTxStatus::FastpathCertified),
                     });
                 }
             }
