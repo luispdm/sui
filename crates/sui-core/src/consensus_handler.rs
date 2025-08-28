@@ -1002,7 +1002,7 @@ impl ExecutionSchedulerSender {
                 .into_iter()
                 .map(|txn| {
                     if txn.as_tx().is_some_and(|tx| !tx.is_system_tx()) {
-                        tracing::info!(target: "SF", "consensus_handler::TransactionManagerSender::run for {}", txn.as_tx().unwrap().digest());
+                        tracing::info!(target: "SF", "consensus_handler::ExecutionSchedulerSender::run for {}", txn.as_tx().unwrap().digest());
                     }
                     let key = txn.key();
                     (
