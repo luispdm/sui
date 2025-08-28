@@ -392,12 +392,20 @@ impl ConsensusAdapter {
             .iter()
             .filter_map(|tx| match &tx.kind {
                 ConsensusTransactionKind::CertifiedTransaction(certificate) => {
+                    if !certificate.is_system_tx() {
+                        tracing::info!(target: "SF", "consensus_adapter::ConsensusAdapter::await_submit_delay for tx {}", certificate.digest());
+                    };
                     Some((certificate.digest(), certificate.gas_price()))
                 }
-                ConsensusTransactionKind::UserTransaction(transaction) => Some((
-                    transaction.digest(),
-                    transaction.data().transaction_data().gas_price(),
-                )),
+                ConsensusTransactionKind::UserTransaction(transaction) => {
+                    if !transaction.is_system_tx() {
+                        tracing::info!(target: "SF", "consensus_adapter::ConsensusAdapter::await_submit_delay for tx {}", transaction.digest());
+                    };
+                    Some((
+                        transaction.digest(),
+                        transaction.data().transaction_data().gas_price(),
+                    ))
+                },
                 _ => None,
             })
             .min();

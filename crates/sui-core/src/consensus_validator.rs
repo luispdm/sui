@@ -60,6 +60,9 @@ impl SuiTxValidator {
         for tx in txs.iter() {
             match tx {
                 ConsensusTransactionKind::CertifiedTransaction(certificate) => {
+                    if !certificate.is_system_tx() {
+                        tracing::info!(target: "SF", "consensus_validator::SuiTxValidator::validate_transactions for {}", certificate.digest());
+                    }
                     cert_batch.push(certificate.as_ref());
                 }
                 ConsensusTransactionKind::CheckpointSignature(signature) => {
