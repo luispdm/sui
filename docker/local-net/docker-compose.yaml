@@ -1,0 +1,82 @@
+--- 
+services:
+  node:
+    image: mysten/sui-tools:mainnet-v1.54.2-arm64
+    ports:
+    - "8080:8080"
+    - "8084:8084/udp"
+    - "9000:9000"
+    - "9184:9184"
+    - "9123:9123"
+    entrypoint: ["/root/docker-entrypoint.sh"]
+    volumes:
+    - ./fullnode-template.yaml:/root/fullnode.yaml:ro
+    - ./genesis.yaml:/root/genesis.yaml:ro
+    - ./docker-entrypoint.sh:/root/docker-entrypoint.sh:rox
+    # - suidb:/opt/sui/db:rw
+    # environment:
+    #   - RUST_LOG=info
+    command: ["sui", "start", "--with-faucet"]
+  
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    command:
+      - --config.file=/etc/prometheus.yaml
+      - --web.enable-remote-write-receiver
+      - --enable-feature=exemplar-storage
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus.yaml
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    volumes:
+      - ./grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+      - ./dashboards:/etc/grafana/provisioning/dashboards
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+      - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor
+    ports:
+      - "3000:3000"
+
+  node-exporter:
+    image: prom/node-exporter:v1.9.1
+    container_name: node-exporter
+    restart: unless-stopped
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+      - "9100:9100"
+
+  # stress test node config goes here
+  # validator node config goes here
+
+  # fullnode:
+  #   image: mysten/sui:mainnet-v1.54.2-arm64
+  #   ports:
+  #   - "8080:8080"
+  #   - "8084:8084/udp"
+  #   - "9000:9000"
+  #   - "9184:9184"
+  #   volumes:
+  #   - ./fullnode-template.yaml:/root/fullnode.yaml:ro
+  #   - ./genesis.yaml:/root/genesis.yaml:ro
+  #   - ./docker-entrypoint.sh:/root/docker-entrypoint.sh:rox
+  #   # - suidb:/opt/sui/db:rw
+  #   # environment:
+  #   #   - RUST_LOG=info
+  #   command: ["sui", "start", "--with-faucet"]
+
+# volumes:
+#   suidb:
+#     driver: local

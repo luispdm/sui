@@ -1,0 +1,10 @@
+parameters:
+  epoch_duration_ms: 60000 # limit epoch duration to 60 seconds
+accounts:
+  - address: "0xca97774fbdbf7539aa14cfad491a227661284e3a3d0b97e6365438745beca509"
+    gas_amounts:
+      - 30000000000000000 # 30M SUI, total of 150M SUI
+      - 30000000000000000
+      - 30000000000000000
+      - 30000000000000000
+      - 30000000000000000
