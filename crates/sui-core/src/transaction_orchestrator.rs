@@ -594,7 +594,7 @@ where
             )
             .await
             .map_err(|e| match e {
-                TransactionDriverError::TimeOutWithLastRetriableError {
+                TransactionDriverError::TimeoutWithLastRetriableError {
                     last_error,
                     attempts,
                     timeout,
