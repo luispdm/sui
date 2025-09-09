@@ -12,19 +12,27 @@ use crate::{
 };
 
 use super::{
-    scalars::{digest::Digest, sui_address::SuiAddress, type_filter::TypeInput, uint53::UInt53},
+    scalars::{
+        digest::Digest, domain::Domain, sui_address::SuiAddress, type_filter::TypeInput,
+        uint53::UInt53,
+    },
     types::{
         address::Address,
         checkpoint::{filter::CheckpointFilter, CCheckpoint, Checkpoint},
+        coin_metadata::CoinMetadata,
         epoch::Epoch,
         event::{filter::EventFilter, CEvent, Event},
         move_package::{self, MovePackage, PackageCheckpointFilter, PackageKey},
         move_type::{self, MoveType},
+        name_service::name_to_address,
         object::{self, Object, ObjectKey, VersionFilter},
         object_filter::{ObjectFilter, Validator as OFValidator},
         protocol_configs::ProtocolConfigs,
         service_config::ServiceConfig,
-        transaction::{filter::TransactionFilter, CTransaction, Transaction},
+        transaction::{
+            filter::{TransactionFilter, TransactionFilterValidator as TFValidator},
+            CTransaction, Transaction,
+        },
         transaction_effects::TransactionEffects,
     },
 };
@@ -76,11 +84,10 @@ impl Query {
         sequence_number: Option<UInt53>,
     ) -> Result<Option<Checkpoint>, RpcError> {
         let scope = self.scope(ctx)?;
-        let sequence_number = sequence_number
-            .map(|s| s.into())
-            .unwrap_or(scope.checkpoint_viewed_at());
-
-        Ok(Checkpoint::with_sequence_number(scope, sequence_number))
+        Ok(Checkpoint::with_sequence_number(
+            scope,
+            sequence_number.map(|s| s.into()),
+        ))
     }
 
     /// Paginate checkpoints in the network, optionally bounded to checkpoints in the given epoch.
@@ -101,6 +108,17 @@ impl Query {
         let filter = filter.unwrap_or_default();
 
         Checkpoint::paginate(ctx, scope, page, filter).await
+    }
+
+    /// Fetch the CoinMetadata for a given coin type.
+    ///
+    /// Returns `null` if no CoinMetadata object exists for the given coin type.
+    async fn coin_metadata(
+        &self,
+        ctx: &Context<'_>,
+        coin_type: TypeInput,
+    ) -> Result<Option<CoinMetadata>, RpcError<object::Error>> {
+        CoinMetadata::by_coin_type(ctx, self.scope(ctx)?, coin_type.into()).await
     }
 
     /// Fetch an epoch by its ID, or fetch the latest epoch if no ID is provided.
@@ -144,7 +162,7 @@ impl Query {
         let scope = self.scope(ctx)?;
         Ok(keys
             .into_iter()
-            .map(|k| Checkpoint::with_sequence_number(scope.clone(), k.into()))
+            .map(|k| Checkpoint::with_sequence_number(scope.clone(), Some(k.into())))
             .collect())
     }
 
@@ -318,7 +336,7 @@ impl Query {
         before: Option<object::CVersion>,
         address: SuiAddress,
         filter: Option<VersionFilter>,
-    ) -> Result<Option<Connection<String, Object>>, RpcError<object::Error>> {
+    ) -> Result<Option<Connection<String, Object>>, RpcError> {
         let pagination: &PaginationConfig = ctx.data()?;
         let limits = pagination.limits("Query", "objectVersions");
         let page = Page::from_params(limits, first, after, last, before)?;
@@ -374,7 +392,7 @@ impl Query {
         last: Option<u64>,
         before: Option<move_package::CPackage>,
         filter: Option<PackageCheckpointFilter>,
-    ) -> Result<Option<Connection<String, MovePackage>>, RpcError<move_package::Error>> {
+    ) -> Result<Option<Connection<String, MovePackage>>, RpcError> {
         let pagination: &PaginationConfig = ctx.data()?;
         let limits = pagination.limits("Query", "packages");
         let page = Page::from_params(limits, first, after, last, before)?;
@@ -402,7 +420,7 @@ impl Query {
         before: Option<object::CVersion>,
         address: SuiAddress,
         filter: Option<VersionFilter>,
-    ) -> Result<Option<Connection<String, MovePackage>>, RpcError<move_package::Error>> {
+    ) -> Result<Option<Connection<String, MovePackage>>, RpcError> {
         let pagination: &PaginationConfig = ctx.data()?;
         let limits = pagination.limits("Query", "packageVersions");
         let page = Page::from_params(limits, first, after, last, before)?;
@@ -438,6 +456,21 @@ impl Query {
         ServiceConfig
     }
 
+    /// Look-up an account by its SuiNS name, assuming it has a valid, unexpired name registration.
+    async fn suins_name(
+        &self,
+        ctx: &Context<'_>,
+        address: Domain,
+        root_version: Option<UInt53>,
+    ) -> Result<Option<Address>, RpcError> {
+        let mut scope = self.scope(ctx)?;
+        if let Some(version) = root_version {
+            scope = scope.with_root_version(version.into());
+        }
+
+        name_to_address(ctx, &scope, &address).await
+    }
+
     /// Fetch a transaction by its digest.
     ///
     /// Returns `null` if the transaction does not exist in the store, either because it never existed or because it was pruned.
@@ -468,7 +501,7 @@ impl Query {
         after: Option<CTransaction>,
         last: Option<u64>,
         before: Option<CTransaction>,
-        filter: Option<TransactionFilter>,
+        #[graphql(validator(custom = "TFValidator"))] filter: Option<TransactionFilter>,
     ) -> Result<Connection<String, Transaction>, RpcError> {
         let scope = self.scope(ctx)?;
         let pagination: &PaginationConfig = ctx.data()?;

@@ -17,9 +17,11 @@ use crate::{
 
 use super::{
     balance::{self, Balance},
+    coin_metadata::CoinMetadata,
     dynamic_field::{DynamicField, DynamicFieldName},
     move_object::MoveObject,
     move_package::MovePackage,
+    name_service::address_to_name,
     object::{self, Object, ObjectKey},
     object_filter::{ObjectFilter, Validator as OFValidator},
 };
@@ -48,10 +50,15 @@ use super::{
         desc = "Total balance across coins owned by this address, grouped by coin type.",
     ),
     field(
+        name = "default_suins_name",
+        ty = "Result<Option<String>, RpcError<object::Error>>",
+        desc = "The domain explicitly configured as the default SuiNS name for this address."
+    ),
+    field(
         name = "multi_get_balances",
         arg(name = "keys", ty = "Vec<TypeInput>"),
-        ty = "Result<Vec<Balance>, RpcError<balance::Error>>",
-        desc = "Fetch the total balances keyed by coin types (e.g. `0x2::sui::SUI`) owned by this address.\n\nIf the address does not own any coins of a given type, a balance of zero is returned for that type.",
+        ty = "Result<Option<Vec<Balance>>, RpcError<balance::Error>>",
+        desc = "Fetch the total balances keyed by coin types (e.g. `0x2::sui::SUI`) owned by this address.\n\nReturns `null` when no checkpoint is set in scope (e.g. execution scope). If the address does not own any coins of a given type, a balance of zero is returned for that type.",
     ),
     field(
         name = "objects",
@@ -66,6 +73,7 @@ use super::{
 )]
 pub(crate) enum IAddressable {
     Address(Address),
+    CoinMetadata(CoinMetadata),
     DynamicField(DynamicField),
     MoveObject(MoveObject),
     MovePackage(MovePackage),
@@ -105,15 +113,14 @@ impl Address {
 
     /// Fetch the total balance for coins with marker type `coinType` (e.g. `0x2::sui::SUI`), owned by this address.
     ///
+    /// Returns `None` when no checkpoint is set in scope (e.g. execution scope).
     /// If the address does not own any coins of that type, a balance of zero is returned.
     pub(crate) async fn balance(
         &self,
         ctx: &Context<'_>,
         coin_type: TypeInput,
     ) -> Result<Option<Balance>, RpcError<balance::Error>> {
-        Balance::fetch_one(ctx, &self.scope, self.address, coin_type.into())
-            .await
-            .map(Some)
+        Balance::fetch_one(ctx, &self.scope, self.address, coin_type.into()).await
     }
 
     /// Total balance across coins owned by this address, grouped by coin type.
@@ -133,12 +140,20 @@ impl Address {
             .map(Some)
     }
 
+    /// The domain explicitly configured as the default SuiNS name for this address.
+    pub(crate) async fn default_suins_name(
+        &self,
+        ctx: &Context<'_>,
+    ) -> Result<Option<String>, RpcError> {
+        address_to_name(ctx, &self.scope, self.address).await
+    }
+
     /// Access a dynamic field on an object using its type and BCS-encoded name.
     pub(crate) async fn dynamic_field(
         &self,
         ctx: &Context<'_>,
         name: DynamicFieldName,
-    ) -> Result<Option<DynamicField>, RpcError<object::Error>> {
+    ) -> Result<Option<DynamicField>, RpcError> {
         DynamicField::by_name(
             ctx,
             self.scope.clone(),
@@ -175,7 +190,7 @@ impl Address {
         &self,
         ctx: &Context<'_>,
         name: DynamicFieldName,
-    ) -> Result<Option<DynamicField>, RpcError<object::Error>> {
+    ) -> Result<Option<DynamicField>, RpcError> {
         DynamicField::by_name(
             ctx,
             self.scope.clone(),
@@ -193,7 +208,7 @@ impl Address {
         &self,
         ctx: &Context<'_>,
         keys: Vec<DynamicFieldName>,
-    ) -> Result<Vec<Option<DynamicField>>, RpcError<object::Error>> {
+    ) -> Result<Vec<Option<DynamicField>>, RpcError> {
         try_join_all(keys.into_iter().map(|key| {
             DynamicField::by_name(
                 ctx,
@@ -213,7 +228,7 @@ impl Address {
         &self,
         ctx: &Context<'_>,
         keys: Vec<DynamicFieldName>,
-    ) -> Result<Vec<Option<DynamicField>>, RpcError<object::Error>> {
+    ) -> Result<Vec<Option<DynamicField>>, RpcError> {
         try_join_all(keys.into_iter().map(|key| {
             DynamicField::by_name(
                 ctx,
@@ -228,12 +243,13 @@ impl Address {
 
     /// Fetch the total balances keyed by coin types (e.g. `0x2::sui::SUI`) owned by this address.
     ///
+    /// Returns `None` when no checkpoint is set in scope (e.g. execution scope).
     /// If the address does not own any coins of a given type, a balance of zero is returned for that type.
     pub(crate) async fn multi_get_balances(
         &self,
         ctx: &Context<'_>,
         keys: Vec<TypeInput>,
-    ) -> Result<Vec<Balance>, RpcError<balance::Error>> {
+    ) -> Result<Option<Vec<Balance>>, RpcError<balance::Error>> {
         let coin_types = keys.into_iter().map(|k| k.into()).collect();
         Balance::fetch_many(ctx, &self.scope, self.address, coin_types).await
     }
