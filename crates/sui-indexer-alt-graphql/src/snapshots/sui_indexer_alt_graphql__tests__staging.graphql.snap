@@ -1167,6 +1167,24 @@ input EventFilter {
 	Limit to event that occured strictly before the given checkpoint.
 	"""
 	beforeCheckpoint: UInt53
+	"""
+	Events emitted by a particular module. An event is emitted by a particular module if some function in the module is called by a PTB and emits an event.
+	
+	Modules can be filtered by their package, or package::module. We currently do not support filtering by emitting module and event type at the same time so if both are provided in one filter, the query will error.
+	"""
+	module: String
+	"""
+	Filter on events by transaction sender address.
+	"""
+	sender: SuiAddress
+	"""
+	This field is used to specify the type of event emitted.
+	
+	Events can be filtered by their type's package, package::module, or their fully qualified type name.
+	
+	Generic types can be queried by either the generic type name, e.g. `0x2::coin::Coin`, or by the full type name, such as `0x2::coin::Coin<0x2::sui::SUI>`.
+	"""
+	type: String
 }
 
 """
@@ -3024,6 +3042,14 @@ type Query {
 	"""
 	serviceConfig: ServiceConfig!
 	"""
+	Simulate a transaction to preview its effects without executing it on chain.
+	
+	- `transactionDataBcs` contains the BCS-encoded transaction data (Base64-encoded).
+	
+	Unlike `executeTransaction`, this does not require signatures since the transaction is not committed to the blockchain. This allows for previewing transaction effects, estimating gas costs, and testing transaction logic without spending gas or requiring valid signatures.
+	"""
+	simulateTransaction(transactionDataBcs: Base64!): SimulationResult!
+	"""
 	Look-up an account by its SuiNS name, assuming it has a valid, unexpired name registration.
 	"""
 	suinsName(address: String!, rootVersion: UInt53): Address
@@ -3263,6 +3289,30 @@ type SharedInput {
 	This has implications for scheduling: Transactions that just read shared objects at a certain version (mutable = false) can be executed concurrently, while transactions that write shared objects (mutable = true) must be executed serially with respect to each other.
 	"""
 	mutable: Boolean
+}
+
+"""
+The result of simulating a transaction, including the predicted effects, events, and any errors.
+"""
+type SimulationResult {
+	"""
+	The predicted effects of the transaction if it were executed.
+	
+	`None` if the simulation failed due to an error.
+	"""
+	effects: TransactionEffects
+	"""
+	Error message if the simulation failed.
+	
+	`None` if the simulation was successful.
+	"""
+	error: String
+	"""
+	The events that would be emitted if the transaction were executed.
+	
+	`None` if the simulation failed or no events would be emitted.
+	"""
+	events: [Event!]
 }
 
 """
@@ -3537,6 +3587,10 @@ input TransactionFilter {
 	Filter to transaction that occurred strictly before the given checkpoint.
 	"""
 	beforeCheckpoint: UInt53
+	"""
+	Limit to transactions that were sent by the given address.
+	"""
+	sentAddress: SuiAddress
 }
 
 """
