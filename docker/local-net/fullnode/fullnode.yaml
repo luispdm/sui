@@ -1,0 +1,23 @@
+---
+db-path: /root/.sui/sui_config/authorities_db
+network-address: /dns/fullnode/tcp/8080/http
+json-rpc-address: "0.0.0.0:9000"
+rpc:
+  enable-indexing: true
+metrics-address: "127.0.0.1:33591"
+admin-interface-port: 35327
+enable-index-processing: true
+jsonrpc-server-type: ~
+grpc-load-shed: ~
+grpc-concurrency-limit: ~
+p2p-config:
+  listen-address: "0.0.0.0:8084"
+  external-address: "/dns/fullnode/udp/8084"
+genesis:
+  genesis-file-location: /opt/sui/config/genesis.blob
+authority-store-pruning-config:
+  num-latest-epoch-dbs-to-retain: 3
+  epoch-db-pruning-period-secs: 3600
+  num-epochs-to-retain: 500
+  max-checkpoints-in-batch: 10
+  max-transactions-in-batch: 1000

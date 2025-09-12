@@ -1,28 +1,16 @@
 --- 
 services:
-  node:
-    image: tools:testing
-    container_name: node
-    ports:
-      - "8080:8080"
-      - "8084:8084/udp"
-      - "9000:9000"
-      - "9184:9184"
-      - "9123:9123"
-    entrypoint: ["/root/entrypoint.sh"]
+
+  genesis:
+    image: mysten/sui-tools:mainnet-v1.55.0-arm64
+    container_name: genesis
     volumes:
-      - ./fullnode-template.yaml:/root/fullnode.yaml:ro
       - ./genesis.yaml:/root/genesis.yaml:ro
-      - ./entrypoint.sh:/root/entrypoint.sh:rox
-      - node_config:/root/.sui/sui_config
+      - genesis_config:/root/.sui/sui_config
     environment:
-      RUST_BACKTRACE: 1
-    command: ["sui", "start", "--with-faucet"]
-    healthcheck:
-      test: ["CMD-SHELL", "test -f /root/.sui/sui_config/genesis.blob -a -f /root/.sui/sui_config/sui.keystore"]
-      interval: 5s
-      timeout: 2s
-      retries: 10
+      - RUST_BACKTRACE=1
+      - RUST_LOG=trace
+    command: ["sui", "genesis", "--from-config", "/root/genesis.yaml", "-f", "--with-faucet"]
   
   prometheus:
     image: prom/prometheus:v3.5.0
@@ -67,13 +55,13 @@ services:
   stress:
     image: stress:testing
     depends_on:
-      node:
-        condition: service_healthy
+      fullnode:
+        condition: service_started
     environment:
       - RUST_BACKTRACE=1
       - STARTUP_DELAY_SECONDS=5
       - STRESS_STAGGERED_START_MAX_MULTIPLIER=0
-      - FULLNODE_RPC_ADDRESS=node:9000
+      - FULLNODE_RPC_ADDRESS=fullnode:9000
       - PRIMARY_GAS_OWNER=0xca97774fbdbf7539aa14cfad491a227661284e3a3d0b97e6365438745beca509
       - GENESIS_BLOB_PATH=/opt/sui/config/genesis.blob
       - KEYSTORE_PATH=/root/sui.keystore
@@ -86,32 +74,68 @@ services:
       - BATCH_PAYMENT_SIZE=15
       - STRESS_ADVERSARIAL=0
     volumes:
-      - node_config:/opt/sui/config:ro
-      - ./sui.keystore:/root/sui.keystore:ro
+      - genesis_config:/opt/sui/config:ro
+      - ./stress/sui.keystore:/root/sui.keystore:ro
+
+  fullnode:
+    image: mysten/sui-node:mainnet-v1.55.0-arm64
+    depends_on:
+      genesis:
+        condition: service_completed_successfully
+    container_name: fullnode
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./fullnode/fullnode.yaml:/root/fullnode.yaml:ro
+      - fullnode_db:/root/.sui/sui_config
+      - genesis_config:/opt/sui/config:ro
+    environment:
+      - RUST_BACKTRACE=1
+      - RUST_LOG=off
+    command: ["sui-node", "--config-path", /root/fullnode.yaml]
+  
+  validator0:
+    image: mysten/sui-node:mainnet-v1.55.0-arm64
+    depends_on:
+      genesis:
+        condition: service_completed_successfully
+    container_name: validator0
+    ports:
+      - "9184:9184"
+    entrypoint: ["/root/entrypoint.sh"]
+    volumes:
+      - ./validator0/entrypoint.sh:/root/entrypoint.sh:rox
+      - validator0_db:/root/.sui/sui_config
+      - genesis_config:/opt/sui/config:rw
+    environment:
+      - RUST_BACKTRACE=1
+      - RUST_LOG=off
+    command: ["sui-node", "--config-path", /opt/sui/config/validator0-8080.yaml]
 
   validator1:
-    image: tools:testing
+    image: mysten/sui-node:mainnet-v1.55.0-arm64
     depends_on:
-      node:
-        condition: service_healthy
+      genesis:
+        condition: service_completed_successfully
     container_name: validator1
     ports:
       - "9185:9185"
     entrypoint: ["/root/entrypoint.sh"]
     volumes:
-      - ./validator1/sui.keystore:/root/sui.keystore:rw
       - ./validator1/entrypoint.sh:/root/entrypoint.sh:rox
-      - ./validator1/validator.yaml:/root/validator.yaml:ro
-      - ./validator1/client.yaml:/root/.sui/sui_config/client.yaml:ro
-      - node_config:/opt/sui/config:ro
-      - validator_config:/root/.sui/sui_config
+      - validator1_db:/root/.sui/sui_config
+      - genesis_config:/opt/sui/config:rw
     environment:
-      RUST_BACKTRACE: 1
-      RUST_LOG: off
-    command: ["sui-node", "--config-path", /root/validator.yaml]
+      - RUST_BACKTRACE=1
+      - RUST_LOG=off
+    command: ["sui-node", "--config-path", /opt/sui/config/validator1-8080.yaml]
 
 volumes:
-  node_config:
+  fullnode_db:
     driver: local
-  validator_config:
+  validator0_db:
+    driver: local
+  validator1_db:
+    driver: local
+  genesis_config:
     driver: local
