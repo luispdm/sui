@@ -12,6 +12,12 @@ scrape_configs:
         labels:
           host: validator0
           network: local
+  - job_name: "Validator_1"
+    static_configs:
+      - targets: ["host.docker.internal:9185"]
+        labels:
+          host: validator1
+          network: local
   # - job_name: "Client_1"
   #   static_configs:
   #     - targets: ["host.docker.internal:8081"]

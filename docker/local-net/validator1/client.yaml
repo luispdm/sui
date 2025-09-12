@@ -1,0 +1,10 @@
+---
+keystore:
+  File: /root/sui.keystore
+envs:
+  - alias: localnet
+    rpc: "http://node:9000"
+    ws: ~
+    basic_auth: ~
+active_env: localnet
+active_address: "0xdbe3e8dd0739620448d202d18158b9622e65ea797f2571d3574c4e4d33e0fb09"

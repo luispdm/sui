@@ -1,22 +1,22 @@
 --- 
 services:
   node:
-    image: mysten/sui-tools:mainnet-v1.54.2-arm64
+    image: tools:testing
     container_name: node
     ports:
-    - "8080:8080"
-    - "8084:8084/udp"
-    - "9000:9000"
-    - "9184:9184"
-    - "9123:9123"
-    entrypoint: ["/root/docker-entrypoint.sh"]
+      - "8080:8080"
+      - "8084:8084/udp"
+      - "9000:9000"
+      - "9184:9184"
+      - "9123:9123"
+    entrypoint: ["/root/entrypoint.sh"]
     volumes:
-    - ./fullnode-template.yaml:/root/fullnode.yaml:ro
-    - ./genesis.yaml:/root/genesis.yaml:ro
-    - ./docker-entrypoint.sh:/root/docker-entrypoint.sh:rox
-    - config:/root/.sui/sui_config
-    # environment:
-    #   - RUST_LOG=info
+      - ./fullnode-template.yaml:/root/fullnode.yaml:ro
+      - ./genesis.yaml:/root/genesis.yaml:ro
+      - ./entrypoint.sh:/root/entrypoint.sh:rox
+      - node_config:/root/.sui/sui_config
+    environment:
+      RUST_BACKTRACE: 1
     command: ["sui", "start", "--with-faucet"]
     healthcheck:
       test: ["CMD-SHELL", "test -f /root/.sui/sui_config/genesis.blob -a -f /root/.sui/sui_config/sui.keystore"]
@@ -70,41 +70,48 @@ services:
       node:
         condition: service_healthy
     environment:
-      - RUST_LOG=info
+      - RUST_BACKTRACE=1
       - STARTUP_DELAY_SECONDS=5
       - STRESS_STAGGERED_START_MAX_MULTIPLIER=0
       - FULLNODE_RPC_ADDRESS=node:9000
       - PRIMARY_GAS_OWNER=0xca97774fbdbf7539aa14cfad491a227661284e3a3d0b97e6365438745beca509
       - GENESIS_BLOB_PATH=/opt/sui/config/genesis.blob
-      - KEYSTORE_PATH=/opt/sui/config/sui.keystore
-      - STRESS_TARGET_QPS=11
-      - STRESS_SHARED_COUNTER=5
-      - STRESS_TRANSFER_OBJECT=5
+      - KEYSTORE_PATH=/root/sui.keystore
+      - STRESS_TARGET_QPS=100
+      - STRESS_SHARED_COUNTER=50
+      - STRESS_TRANSFER_OBJECT=50
       - STRESS_DELEGATION=0
       - SUI_PROTOCOL_CONFIG_CHAIN_OVERRIDE=${SUI_PROTOCOL_CONFIG_CHAIN_OVERRIDE}
       - BATCH_PAYMENT=1
       - BATCH_PAYMENT_SIZE=15
       - STRESS_ADVERSARIAL=0
     volumes:
-      - config:/opt/sui/config:ro
-  # validator node config goes here
+      - node_config:/opt/sui/config:ro
+      - ./sui.keystore:/root/sui.keystore:ro
 
-  # fullnode:
-  #   image: mysten/sui:mainnet-v1.54.2-arm64
-  #   ports:
-  #   - "8080:8080"
-  #   - "8084:8084/udp"
-  #   - "9000:9000"
-  #   - "9184:9184"
-  #   volumes:
-  #   - ./fullnode-template.yaml:/root/fullnode.yaml:ro
-  #   - ./genesis.yaml:/root/genesis.yaml:ro
-  #   - ./docker-entrypoint.sh:/root/docker-entrypoint.sh:rox
-  #   # - suidb:/opt/sui/db:rw
-  #   # environment:
-  #   #   - RUST_LOG=info
-  #   command: ["sui", "start", "--with-faucet"]
+  validator1:
+    image: tools:testing
+    depends_on:
+      node:
+        condition: service_healthy
+    container_name: validator1
+    ports:
+      - "9185:9185"
+    entrypoint: ["/root/entrypoint.sh"]
+    volumes:
+      - ./validator1/sui.keystore:/root/sui.keystore:rw
+      - ./validator1/entrypoint.sh:/root/entrypoint.sh:rox
+      - ./validator1/validator.yaml:/root/validator.yaml:ro
+      - ./validator1/client.yaml:/root/.sui/sui_config/client.yaml:ro
+      - node_config:/opt/sui/config:ro
+      - validator_config:/root/.sui/sui_config
+    environment:
+      RUST_BACKTRACE: 1
+      RUST_LOG: off
+    command: ["sui-node", "--config-path", /root/validator.yaml]
 
 volumes:
-  config:
+  node_config:
+    driver: local
+  validator_config:
     driver: local
