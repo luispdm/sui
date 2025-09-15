@@ -54,7 +54,7 @@ use std::{
     fs,
     pin::Pin,
     str::FromStr,
-    sync::Arc,
+    sync::{atomic::AtomicU64, Arc},
     vec,
 };
 use sui_config::node::{AuthorityOverloadConfig, StateDebugDumpConfig};
@@ -3378,6 +3378,7 @@ impl AuthorityState {
         pruner_db: Option<Arc<AuthorityPrunerTables>>,
         policy_config: Option<PolicyConfig>,
         firewall_config: Option<RemoteFirewallConfig>,
+        pruner_watermark: Arc<AtomicU64>,
     ) -> Arc<Self> {
         Self::check_protocol_version(supported_protocol_versions, epoch_store.protocol_version());
 
@@ -3409,6 +3410,7 @@ impl AuthorityState {
             epoch_store.epoch_start_state().epoch_duration_ms(),
             prometheus_registry,
             pruner_db,
+            pruner_watermark,
         );
         let input_loader =
             TransactionInputLoader::new(execution_cache_trait_pointers.object_cache_reader.clone());
@@ -5351,6 +5353,25 @@ impl AuthorityState {
     }
 
     #[instrument(level = "debug", skip_all)]
+    fn create_coin_registry_tx(
+        &self,
+        epoch_store: &Arc<AuthorityPerEpochStore>,
+    ) -> Option<EndOfEpochTransactionKind> {
+        if !epoch_store.protocol_config().enable_coin_registry() {
+            info!("coin registry not enabled");
+            return None;
+        }
+
+        if epoch_store.coin_registry_exists() {
+            return None;
+        }
+
+        let tx = EndOfEpochTransactionKind::new_coin_registry_create();
+        info!("Creating CoinRegistryCreate tx");
+        Some(tx)
+    }
+
+    #[instrument(level = "debug", skip_all)]
     fn create_bridge_tx(
         &self,
         epoch_store: &Arc<AuthorityPerEpochStore>,
@@ -5578,6 +5599,10 @@ impl AuthorityState {
             txns.push(tx);
         }
         if let Some(tx) = self.create_accumulator_root_tx(epoch_store) {
+            txns.push(tx);
+        }
+
+        if let Some(tx) = self.create_coin_registry_tx(epoch_store) {
             txns.push(tx);
         }
 
