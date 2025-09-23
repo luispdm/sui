@@ -104,12 +104,14 @@ services:
       - "9184:9184"
     entrypoint: ["/root/entrypoint.sh"]
     volumes:
-      - ./validator0/entrypoint.sh:/root/entrypoint.sh:rox
+      - ./validator/entrypoint.sh:/root/entrypoint.sh:rox
       - validator0_db:/root/.sui/sui_config
       - genesis_config:/opt/sui/config:rw
     environment:
       - RUST_BACKTRACE=1
       - RUST_LOG=off
+      - NAME=validator0
+      - RPC_PORT=9184
     command: ["sui-node", "--config-path", /opt/sui/config/validator0-8080.yaml]
 
   validator1:
@@ -122,12 +124,14 @@ services:
       - "9185:9185"
     entrypoint: ["/root/entrypoint.sh"]
     volumes:
-      - ./validator1/entrypoint.sh:/root/entrypoint.sh:rox
+      - ./validator/entrypoint.sh:/root/entrypoint.sh:rox
       - validator1_db:/root/.sui/sui_config
       - genesis_config:/opt/sui/config:rw
     environment:
       - RUST_BACKTRACE=1
       - RUST_LOG=off
+      - NAME=validator1
+      - RPC_PORT=9185
     command: ["sui-node", "--config-path", /opt/sui/config/validator1-8080.yaml]
 
 volumes:
