@@ -1,5 +1,5 @@
 parameters:
-  epoch_duration_ms: 60000 # limit epoch duration to 60 seconds
+  epoch_duration_ms: 1 # placeholder, actual value set in the compose file
 accounts:
   # funding the stress test account
   - address: "0xca97774fbdbf7539aa14cfad491a227661284e3a3d0b97e6365438745beca509"
@@ -24,5 +24,13 @@ validator_config_info:
   narwhal_worker_address: /dns/validator1/udp/8082
   network_address: /dns/validator1/tcp/8080/http
   p2p_address: /dns/validator1/udp/8084
+  gas_price: 1000
+  commission_rate: 200
+- name: validator2
+  consensus_address: /ip4/127.0.0.1/tcp/8083/http
+  narwhal_primary_address: /dns/validator2/udp/8081
+  narwhal_worker_address: /dns/validator2/udp/8082
+  network_address: /dns/validator2/tcp/8080/http
+  p2p_address: /dns/validator2/udp/8084
   gas_price: 1000
   commission_rate: 200

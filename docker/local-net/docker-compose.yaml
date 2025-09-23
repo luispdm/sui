@@ -11,6 +11,7 @@ services:
     environment:
       - RUST_BACKTRACE=1
       - RUST_LOG=trace
+      - EPOCH=${EPOCH:-600000} # default epoch duration is 10 minutes
     entrypoint: ["/root/entrypoint.sh"]
   
   prometheus:
@@ -135,12 +136,34 @@ services:
       - RPC_PORT=9185
     command: ["sui-node", "--config-path", /opt/sui/config/validator1-8080.yaml]
 
+  validator2:
+    image: mysten/sui-node:mainnet-v1.55.0-arm64
+    depends_on:
+      genesis:
+        condition: service_completed_successfully
+    container_name: validator2
+    ports:
+      - "9186:9186"
+    entrypoint: ["/root/entrypoint.sh"]
+    volumes:
+      - ./validator/entrypoint.sh:/root/entrypoint.sh:rox
+      - validator2_db:/root/.sui/sui_config
+      - genesis_config:/opt/sui/config:rw
+    environment:
+      - RUST_BACKTRACE=1
+      - RUST_LOG=off
+      - NAME=validator2
+      - RPC_PORT=9186
+    command: ["sui-node", "--config-path", /opt/sui/config/validator2-8080.yaml]
+
 volumes:
   fullnode_db:
     driver: local
   validator0_db:
     driver: local
   validator1_db:
+    driver: local
+  validator2_db:
     driver: local
   genesis_config:
     driver: local
