@@ -526,6 +526,7 @@ mod tests {
             None,
             0,
             Vec::new(),
+            Vec::new(),
         );
 
         let keypair = network_config.validator_configs()[0].protocol_key_pair();
@@ -578,6 +579,7 @@ mod tests {
             Default::default(),
             None,
             0,
+            Vec::new(),
             Vec::new(),
         );
 

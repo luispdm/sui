@@ -54,7 +54,7 @@ use std::{
     fs,
     pin::Pin,
     str::FromStr,
-    sync::{atomic::AtomicU64, Arc},
+    sync::Arc,
     vec,
 };
 use sui_config::node::{AuthorityOverloadConfig, StateDebugDumpConfig};
@@ -90,7 +90,7 @@ use tracing::trace;
 use tracing::{debug, error, info, instrument, warn};
 
 use self::authority_store::ExecutionLockWriteGuard;
-use self::authority_store_pruner::AuthorityStorePruningMetrics;
+use self::authority_store_pruner::{AuthorityStorePruningMetrics, PrunerWatermarks};
 pub use authority_store::{AuthorityStore, ResolverWrapper, UpdateType};
 use mysten_metrics::{monitored_scope, spawn_monitored_task};
 
@@ -994,39 +994,14 @@ impl AuthorityState {
         // Note: the deny checks may do redundant package loads but:
         // - they only load packages when there is an active package deny map
         // - the loads are cached anyway
-        let deny_status = sui_transaction_checks::deny::check_transaction_for_signing(
+        sui_transaction_checks::deny::check_transaction_for_signing(
             tx_data,
             transaction.tx_signatures(),
             &input_object_kinds,
             &receiving_objects_refs,
             &self.config.transaction_deny_config,
             self.get_backing_package_store().as_ref(),
-        );
-
-        match deny_status {
-            Ok(_) => {}
-            // If the transaction was blocked, it may still be allowed if it is in
-            // the aliased address list.
-            // TODO: Delete this code after protocol version 86.
-            Err(e) => {
-                let allowed = transaction
-                    .inner()
-                    .data()
-                    .tx_signatures()
-                    .iter()
-                    .filter_map(|sig| sig.try_into().ok())
-                    .any(|signer: SuiAddress| {
-                        epoch_store.protocol_config().is_tx_allowed_via_aliasing(
-                            tx_data.sender().to_inner(),
-                            signer.to_inner(),
-                            tx_digest.inner(),
-                        )
-                    });
-                if !allowed {
-                    return Err(e);
-                }
-            }
-        }
+        )?;
 
         let (input_objects, receiving_objects) = self.input_loader.read_objects_for_signing(
             Some(tx_digest),
@@ -3378,7 +3353,7 @@ impl AuthorityState {
         pruner_db: Option<Arc<AuthorityPrunerTables>>,
         policy_config: Option<PolicyConfig>,
         firewall_config: Option<RemoteFirewallConfig>,
-        pruner_watermark: Arc<AtomicU64>,
+        pruner_watermarks: Arc<PrunerWatermarks>,
     ) -> Arc<Self> {
         Self::check_protocol_version(supported_protocol_versions, epoch_store.protocol_version());
 
@@ -3410,7 +3385,7 @@ impl AuthorityState {
             epoch_store.epoch_start_state().epoch_duration_ms(),
             prometheus_registry,
             pruner_db,
-            pruner_watermark,
+            pruner_watermarks,
         );
         let input_loader =
             TransactionInputLoader::new(execution_cache_trait_pointers.object_cache_reader.clone());
@@ -3728,6 +3703,8 @@ impl AuthorityState {
             )
             .await?;
         assert_eq!(new_epoch_store.epoch(), new_epoch);
+        self.execution_scheduler
+            .reconfigure(&new_epoch_store, self.get_child_object_resolver());
         *execution_lock = new_epoch;
         // drop execution_lock after epoch store was updated
         // see also assert in AuthorityState::process_certificate
@@ -3760,9 +3737,12 @@ impl AuthorityState {
                 .map(|c| *c.sequence_number())
                 .unwrap_or_default(),
         );
+        self.execution_scheduler
+            .reconfigure(&new_epoch_store, self.get_child_object_resolver());
         let new_epoch = new_epoch_store.epoch();
         self.epoch_store.store(new_epoch_store);
         epoch_store.epoch_terminated().await;
+
         *execution_lock = new_epoch;
     }
 

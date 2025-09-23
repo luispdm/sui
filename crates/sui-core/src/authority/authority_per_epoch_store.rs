@@ -1057,7 +1057,6 @@ impl AuthorityPerEpochStore {
             protocol_config.accept_zklogin_in_multisig(),
             protocol_config.accept_passkey_in_multisig(),
             protocol_config.zklogin_max_epoch_upper_bound_delta(),
-            protocol_config.get_aliased_addresses().clone(),
             protocol_config.additional_multisig_checks(),
         );
 
@@ -4942,6 +4941,11 @@ impl AuthorityPerEpochStore {
             .as_ref()
             .map(|estimator| estimator.get_observations())
             .unwrap_or_default()
+    }
+
+    /// Whether this node is a validator in this epoch.
+    pub fn is_validator(&self) -> bool {
+        self.committee.authority_exists(&self.name)
     }
 }
 
