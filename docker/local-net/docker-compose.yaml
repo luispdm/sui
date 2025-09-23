@@ -7,10 +7,11 @@ services:
     volumes:
       - ./genesis.yaml:/root/genesis.yaml:ro
       - genesis_config:/root/.sui/sui_config
+      - ./genesis/entrypoint.sh:/root/entrypoint.sh:rox
     environment:
       - RUST_BACKTRACE=1
       - RUST_LOG=trace
-    command: ["sui", "genesis", "--from-config", "/root/genesis.yaml", "-f", "--with-faucet"]
+    entrypoint: ["/root/entrypoint.sh"]
   
   prometheus:
     image: prom/prometheus:v3.5.0
