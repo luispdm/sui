@@ -11,7 +11,7 @@ services:
     environment:
       - RUST_BACKTRACE=1
       - RUST_LOG=trace
-      - EPOCH=${EPOCH:-600000} # default epoch duration is 10 minutes
+      - EPOCH=${EPOCH:-1800000} # default epoch duration is 30 minutes
     entrypoint: ["/root/entrypoint.sh"]
   
   prometheus:
