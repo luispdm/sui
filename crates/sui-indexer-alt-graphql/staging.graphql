@@ -4055,6 +4055,11 @@ type Validator implements IAddressable {
 	"""
 	exchangeRatesSize: UInt53
 	"""
+	A wrapped object containing the validator's exchange rates. This is a table from epoch number to `PoolTokenExchangeRate` value.
+	The exchange rate is used to determine the amount of SUI tokens that each past SUI staker can withdraw in the future.
+	"""
+	exchangeRatesTable: Address
+	"""
 	The reference gas price for this epoch.
 	"""
 	gasPrice: BigInt
@@ -4093,6 +4098,11 @@ type Validator implements IAddressable {
 	Objects owned by this object, optionally filtered by type.
 	"""
 	objects(first: Int, after: String, last: Int, before: String, filter: ObjectFilter): MoveObjectConnection
+	"""
+	The validator's current valid `Cap` object. Validators can delegate the operation ability to another address.
+	The address holding this `Cap` object can then update the reference gas price and tallying rule on behalf of the validator.
+	"""
+	operationCap: MoveObject
 	"""
 	Pending pool token withdrawn during the current epoch, emptied at epoch boundaries.
 	"""
