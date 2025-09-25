@@ -35,3 +35,5 @@ TPS = 110.666664, CPS = 125.666664, latency_ms(min/p50/p99/max) = 218/2223/2437/
 ```
 
 If you want to see the validators' metrics, head to Grafana's address at the drilldown metrics section: http://localhost:3000/a/grafana-metricsdrilldown-app/drilldown.
+
+**Resource usage is quite intensive with this configuration. Make sure to set a high CPU, RAM, and storage limit in your Docker settings.**

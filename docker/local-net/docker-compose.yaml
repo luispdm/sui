@@ -5,7 +5,7 @@ services:
     image: mysten/sui-tools:mainnet-v1.55.0-arm64
     container_name: genesis
     volumes:
-      - ./genesis.yaml:/root/genesis.yaml:ro
+      - ./genesis/genesis.yaml:/root/genesis.yaml:ro
       - genesis_config:/root/.sui/sui_config
       - ./genesis/entrypoint.sh:/root/entrypoint.sh:rox
     environment:
