@@ -206,6 +206,11 @@ impl TransactionSubmitter {
     where
         A: AuthorityAPI + Send + Sync + 'static + Clone,
     {
+        if let Some(tx) = &request.transaction {
+            if !tx.is_system_tx() {
+                tracing::info!(target: "SF", "transaction_driver::TransactionSubmitter::submit_transaction_once to validator: {display_name}");
+            }
+        }
         let submit_start = Instant::now();
 
         let resp = timeout(

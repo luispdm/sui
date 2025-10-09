@@ -353,6 +353,11 @@ where
         request: SubmitTxRequest,
         options: &SubmitTransactionOptions,
     ) -> Result<QuorumTransactionResponse, TransactionDriverError> {
+        if let Some(tx) = &request.transaction {
+            if !tx.is_system_tx() {
+                tracing::info!(target: "SF", "transaction_driver::TransactionDriver::drive_transaction_once");
+            }
+        }
         let auth_agg = self.authority_aggregator.load();
         let amplification_factor =
             amplification_factor.min(auth_agg.committee.num_members() as u64);

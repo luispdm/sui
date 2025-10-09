@@ -657,6 +657,7 @@ where
         good_response_metrics: &GenericCounter<AtomicU64>,
         timeout_duration: Option<Duration>,
     ) -> Result<QuorumTransactionResponse, QuorumDriverError> {
+        info!(target: "SF", "transaction_orchestrator::TransactionOrchestrator::submit_with_transaction_driver");
         let tx_digest = *verified_transaction.digest();
         debug!("Using TransactionDriver for transaction {:?}", tx_digest);
 

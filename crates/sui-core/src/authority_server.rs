@@ -504,10 +504,25 @@ impl ValidatorService {
             traffic_controller: _,
             client_id_source: _,
         } = self.clone();
+
+        let req_addr = if let Some(addr) = request.remote_addr() {
+            Some(addr)
+        } else if let Some(addr) = request.local_addr() {
+            Some(addr)
+        } else {
+            None
+        };
+
         let transaction = request.into_inner();
         let epoch_store = state.load_epoch_store_one_call_per_task();
 
         transaction.validity_check(&epoch_store.tx_validity_check_context())?;
+        
+        if let Some(addr) = req_addr {
+            if !transaction.is_system_tx() {
+                tracing::info!(target: "SF", "authority_server::ValidatorService::handle_transaction coming from: {addr}");
+            }
+        }
 
         // When authority is overloaded and decide to reject this tx, we still lock the object
         // and ask the client to retry in the future. This is because without locking, the
@@ -585,6 +600,14 @@ impl ValidatorService {
             traffic_controller: _,
             client_id_source,
         } = self.clone();
+
+        let req_addr = if let Some(addr) = request.remote_addr() {
+            Some(addr)
+        } else if let Some(addr) = request.local_addr() {
+            Some(addr)
+        } else {
+            None
+        };
 
         let submitter_client_addr = if let Some(client_id_source) = &client_id_source {
             self.get_client_ip_addr(&request, client_id_source)
@@ -688,6 +711,12 @@ impl ValidatorService {
                     .into());
                 }
             };
+
+            if let Some(addr) = req_addr {
+                if !transaction.is_system_tx() {
+                    tracing::info!(target: "SF", "authority_server::ValidatorService::handle_submit_transaction coming from: {addr}");
+                }
+            }
 
             // Ok to fail the request when any transaction is invalid.
             let tx_size = transaction.validity_check(&epoch_store.tx_validity_check_context())?;

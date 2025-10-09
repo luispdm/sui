@@ -320,6 +320,11 @@ where
         request: SubmitTxRequest,
         client_addr: Option<SocketAddr>,
     ) -> Result<SubmitTxResponse, SuiError> {
+        if let Some(tx) = &request.transaction {
+            if !tx.is_system_tx() {
+                tracing::info!(target: "SF", "safe_client::SafeClient::submit_transaction");
+            }
+        }
         let _timer = self.metrics.handle_certificate_latency.start_timer();
         self.authority_client
             .submit_transaction(request, client_addr)
