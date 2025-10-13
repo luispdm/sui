@@ -652,6 +652,10 @@ impl ValidatorService {
             );
         }
 
+        // NOTE: for soft bundle requests, the system tries to sequence the transactions in the same order
+        // if they use the same gas price. But this is only done with best effort.
+        // Transactions in a soft bundle can be individually rejected or deferred, without affecting
+        // other transactions in the same bundle.
         let is_soft_bundle_request = submit_type == SubmitTxType::SoftBundle;
 
         let max_num_transactions = if is_soft_bundle_request {
@@ -731,10 +735,6 @@ impl ValidatorService {
                     .num_rejected_tx_during_overload
                     .with_label_values(&[error.as_ref()])
                     .inc();
-                // Avoid breaking the soft bundle if one transaction is rejected.
-                if is_soft_bundle_request {
-                    return Err(error.into());
-                }
                 results[idx] = Some(SubmitTxResult::Rejected { error });
                 continue;
             }
@@ -768,15 +768,6 @@ impl ValidatorService {
             {
                 let effects_digest = effects.digest();
                 if let Ok(executed_data) = self.complete_executed_data(effects, None).await {
-                    // Avoid breaking the soft bundle if one transaction has already been executed.
-                    if is_soft_bundle_request {
-                        return Err(SuiError::UserInputError {
-                            error: UserInputError::AlreadyExecutedInSoftBundleError {
-                                digest: *tx_digest,
-                            },
-                        }
-                        .into());
-                    }
                     let executed_result = SubmitTxResult::Executed {
                         effects_digest,
                         details: Some(executed_data),
@@ -815,15 +806,6 @@ impl ValidatorService {
                         let effects_digest = effects.digest();
                         if let Ok(executed_data) = self.complete_executed_data(effects, None).await
                         {
-                            // Avoid breaking the soft bundle if one transaction has already been executed.
-                            if is_soft_bundle_request {
-                                return Err(SuiError::UserInputError {
-                                    error: UserInputError::AlreadyExecutedInSoftBundleError {
-                                        digest: *tx_digest,
-                                    },
-                                }
-                                .into());
-                            }
                             let executed_result = SubmitTxResult::Executed {
                                 effects_digest,
                                 details: Some(executed_data),
@@ -833,11 +815,7 @@ impl ValidatorService {
                             continue;
                         }
                     }
-                    // Avoid breaking the soft bundle if one transaction is rejected.
-                    if is_soft_bundle_request {
-                        return Err(e.into());
-                    }
-                    // Otherwise, record the error for the transaction.
+                    // If the transaction has not been executed, record the error for the transaction.
                     results[idx] = Some(SubmitTxResult::Rejected { error: e });
                     continue;
                 }
