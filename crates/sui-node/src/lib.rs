@@ -1576,9 +1576,11 @@ impl SuiNode {
         let tls_config = sui_tls::create_rustls_server_config(
             config.network_key_pair().copy().private(),
             SUI_TLS_SERVER_NAME.to_string(),
+            Some(config.sui_address()),
         );
 
         let network_address = config.network_address().clone();
+        tracing::info!(target: "SF", "sui-node::SuiNode::start_grpc_validator_service on {}", network_address);
 
         let (ready_tx, ready_rx) = oneshot::channel();
 

@@ -74,6 +74,7 @@ impl EffectsCertifier {
     where
         A: AuthorityAPI + Send + Sync + 'static + Clone,
     {
+        tracing::trace!(target: "SF", "effects_certifier::EffectsCertifier::get_certified_finalized_effects current_target: {}", authority_aggregator.get_display_name(&current_target));
         // When consensus position is provided, wait for finalized and fastpath outputs at the validators' side.
         // Otherwise, only wait for finalized effects.
         // Skip the first attempt to get full effects if it is already provided.
@@ -278,6 +279,7 @@ impl EffectsCertifier {
     where
         A: AuthorityAPI + Send + Sync + 'static + Clone,
     {
+        tracing::trace!(target: "SF", "effects_certifier::EffectsCertifier::wait_for_acknowledgments current_target: {}", authority_aggregator.get_display_name(&submitted_tx_to_validator));
         let ping_type = get_ping_type(&tx_digest, tx_type);
         let ping_label = if tx_digest.is_none() { "true" } else { "false" };
         self.metrics

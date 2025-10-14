@@ -178,6 +178,7 @@ impl AuthorityServer {
         let tls_config = sui_tls::create_rustls_server_config(
             self.state.config.network_key_pair().copy().private(),
             SUI_TLS_SERVER_NAME.to_string(),
+            None,
         );
         let config = mysten_network::config::Config::new();
         let server = sui_network::validator::server::ServerBuilder::from_config(

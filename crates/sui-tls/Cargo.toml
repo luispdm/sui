@@ -11,9 +11,12 @@ publish = false
 anyhow.workspace = true
 arc-swap.workspace = true
 ed25519.workspace = true
+hex.workspace = true
 pkcs8.workspace = true
 rcgen.workspace = true
 rustls.workspace = true
+sui-types.workspace = true
+tracing.workspace = true
 webpki.workspace = true
 x509-parser.workspace = true
 

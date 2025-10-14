@@ -304,6 +304,7 @@ mod test {
                 Some(sui_tls::create_rustls_server_config(
                     keypair.copy().private(),
                     "test".to_string(),
+                    None,
                 )),
             )
             .await
@@ -380,6 +381,7 @@ mod test {
                 Some(sui_tls::create_rustls_server_config(
                     keypair.copy().private(),
                     "test".to_string(),
+                    None,
                 )),
             )
             .await
@@ -425,6 +427,7 @@ mod test {
             Some(sui_tls::create_rustls_server_config(
                 keypair.copy().private(),
                 "test".to_string(),
+                None,
             )),
         )
         .await

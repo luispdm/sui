@@ -16495,15 +16495,18 @@ dependencies = [
  "axum-server",
  "ed25519",
  "fastcrypto",
+ "hex",
  "pkcs8 0.10.2",
  "rand 0.8.5",
  "rcgen",
  "reqwest 0.12.9",
  "rustls 0.23.25",
  "rustls-webpki 0.103.0",
+ "sui-types",
  "tokio",
  "tokio-rustls 0.26.2",
  "tower-layer",
+ "tracing",
  "x509-parser",
 ]
 

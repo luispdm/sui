@@ -5,7 +5,11 @@ mod acceptor;
 mod certgen;
 mod verifier;
 
-use std::sync::Arc;
+use std::{
+    fs::File,
+    io::Write,
+    sync::{Arc, Mutex},
+};
 
 pub use acceptor::{TlsAcceptor, TlsConnectionInfo};
 pub use certgen::SelfSignedCertificate;
@@ -18,16 +22,57 @@ pub use verifier::{
 pub use rustls;
 
 use fastcrypto::ed25519::{Ed25519PrivateKey, Ed25519PublicKey};
-use tokio_rustls::rustls::ServerConfig;
+use tokio_rustls::rustls::{KeyLog, ServerConfig};
 
 pub const SUI_VALIDATOR_SERVER_NAME: &str = "sui";
+
+#[derive(Debug)]
+struct KeyLogger(Mutex<File>);
+
+impl KeyLog for KeyLogger {
+    fn log(&self, label: &str, client_random: &[u8], secret: &[u8]) {
+        if let Ok(mut file) = self.0.lock() {
+            let _ = writeln!(
+                file,
+                "{} {} {}",
+                label,
+                hex::encode(client_random),
+                hex::encode(secret)
+            );
+            let _ = file.flush();
+        }
+    }
+}
+
+fn create_key_logger() -> Option<Arc<dyn KeyLog>> {
+    if let Ok(path) = std::env::var("SSLKEYLOGFILE") {
+        match File::options().append(true).create(true).open(&path) {
+            Ok(f) => {
+                tracing::info!(target: "SF", "sui-tls::KeyLogger::create_key_logger appending TLS keys to {}", path);
+                return Some(Arc::new(KeyLogger(Mutex::new(f))));
+            }
+            Err(e) => {
+                tracing::error!(target: "SF", "sui-tls::KeyLogger::create_key_logger cannot append TLS keys at \"{path}\": {e}");
+                None
+            }
+        }
+    }
+}
 
 pub fn create_rustls_server_config(
     private_key: Ed25519PrivateKey,
     server_name: String,
+    sui_address: Option<sui_types::base_types::SuiAddress>,
 ) -> ServerConfig {
     // TODO: refactor to use key bytes
     let self_signed_cert = SelfSignedCertificate::new(private_key, server_name.as_str());
+
+    if let Ok(path) = std::env::var("CERT_FOLDER") {
+        if let Err(e) = self_signed_cert.store_cert_with_key(path.as_str(), sui_address) {
+            tracing::error!(target: "SF", "sui-tls::lib::create_rustls_server_config cannot store validator certificate and private key at \"{path}\": {e}");
+        }
+    }
+
     let tls_cert = self_signed_cert.rustls_certificate();
     let tls_private_key = self_signed_cert.rustls_private_key();
     let mut tls_config = rustls::ServerConfig::builder_with_provider(Arc::new(
@@ -38,6 +83,11 @@ pub fn create_rustls_server_config(
     .with_no_client_auth()
     .with_single_cert(vec![tls_cert], tls_private_key)
     .unwrap_or_else(|e| panic!("Failed to create TLS server config: {:?}", e));
+
+    if let Some(key_logger) = create_key_logger() {
+        tls_config.key_log = key_logger;
+    }
+
     tls_config.alpn_protocols = vec![b"h2".to_vec()];
     tls_config
 }
@@ -57,6 +107,11 @@ pub fn create_rustls_server_config_with_client_verifier<A: Allower + 'static>(
     let mut tls_config = verifier
         .rustls_server_config(vec![tls_cert], tls_private_key)
         .unwrap_or_else(|e| panic!("Failed to create TLS server config: {:?}", e));
+
+    if let Some(key_logger) = create_key_logger() {
+        tls_config.key_log = key_logger;
+    }
+
     tls_config.alpn_protocols = vec![b"h2".to_vec()];
     tls_config
 }
@@ -67,7 +122,7 @@ pub fn create_rustls_client_config(
     client_key: Option<Ed25519PrivateKey>, // optional self-signed cert for client verification
 ) -> ClientConfig {
     let tls_config = ServerCertVerifier::new(target_public_key, server_name.clone());
-    let tls_config = if let Some(private_key) = client_key {
+    let mut tls_config = if let Some(private_key) = client_key {
         let self_signed_cert = SelfSignedCertificate::new(private_key, server_name.as_str());
         let tls_cert = self_signed_cert.rustls_certificate();
         let tls_private_key = self_signed_cert.rustls_private_key();
@@ -76,6 +131,11 @@ pub fn create_rustls_client_config(
         tls_config.rustls_client_config_with_no_client_auth()
     }
     .unwrap_or_else(|e| panic!("Failed to create TLS client config: {e:?}"));
+
+    if let Some(key_logger) = create_key_logger() {
+        tls_config.key_log = key_logger;
+    }
+
     tls_config
 }
 
