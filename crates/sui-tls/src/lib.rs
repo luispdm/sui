@@ -56,6 +56,8 @@ fn create_key_logger() -> Option<Arc<dyn KeyLog>> {
                 None
             }
         }
+    } else {
+        None
     }
 }
 
