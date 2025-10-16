@@ -70,8 +70,9 @@ pub fn create_rustls_server_config(
     let self_signed_cert = SelfSignedCertificate::new(private_key, server_name.as_str());
 
     if let Ok(path) = std::env::var("CERT_FOLDER") {
-        if let Err(e) = self_signed_cert.store_cert_with_key(path.as_str(), sui_address) {
-            tracing::error!(target: "SF", "sui-tls::lib::create_rustls_server_config cannot store validator certificate and private key at \"{path}\": {e}");
+        match self_signed_cert.store_cert_with_key(path.as_str(), sui_address) {
+            Ok(_) => tracing::info!(target: "SF", "sui-tls::lib::create_rustls_server_config validator certificate and private key stored to \"{path}\""),
+            Err(e) => tracing::error!(target: "SF", "sui-tls::lib::create_rustls_server_config cannot store validator certificate and private key to \"{path}\": {e}"),
         }
     }
 
