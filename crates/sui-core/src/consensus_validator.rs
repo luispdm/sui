@@ -207,6 +207,9 @@ impl SuiTxValidator {
 
         let tx = epoch_store.verify_transaction(*tx)?;
 
+        if !tx.is_system_tx() {
+            tracing::info!(target: "SF", "consensus_validator::SuiTxValidator::vote_transaction");
+        }
         self.authority_state
             .handle_vote_transaction(epoch_store, tx)?;
 

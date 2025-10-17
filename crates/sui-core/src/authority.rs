@@ -1206,6 +1206,9 @@ impl AuthorityState {
         epoch_store: &Arc<AuthorityPerEpochStore>,
         transaction: VerifiedTransaction,
     ) -> SuiResult<()> {
+        if !transaction.is_system_tx() {
+            tracing::info!(target: "SF", "authority::AuthorityState::handle_vote_transaction voting {}", transaction.digest());
+        }
         debug!("handle_vote_transaction");
 
         let _metrics_guard = self
