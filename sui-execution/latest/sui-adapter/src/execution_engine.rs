@@ -60,7 +60,6 @@ mod checked {
     use sui_types::effects::TransactionEffects;
     use sui_types::error::{ExecutionError, ExecutionErrorKind};
     use sui_types::execution::{ExecutionTiming, ResultWithTimings};
-    use sui_types::execution_config_utils::to_binary_config;
     use sui_types::execution_status::ExecutionStatus;
     use sui_types::gas::GasCostSummary;
     use sui_types::gas::SuiGasStatus;
@@ -1076,7 +1075,7 @@ mod checked {
         trace_builder_opt: &mut Option<MoveTraceBuilder>,
     ) {
         let digest = tx_ctx.borrow().digest();
-        let binary_config = to_binary_config(protocol_config);
+        let binary_config = protocol_config.binary_config();
         for (version, modules, dependencies) in change_epoch.system_packages.into_iter() {
             let deserialized_modules: Vec<_> = modules
                 .iter()
@@ -1247,7 +1246,7 @@ mod checked {
             .obj(ObjectArg::SharedObject {
                 id: SUI_BRIDGE_OBJECT_ID,
                 initial_shared_version: bridge_shared_version,
-                mutable: true,
+                mutability: sui_types::transaction::SharedObjectMutability::Mutable,
             })
             .expect("Unable to create Bridge object arg!");
         let system_state = builder
@@ -1302,7 +1301,7 @@ mod checked {
                     CallArg::Object(ObjectArg::SharedObject {
                         id: SUI_AUTHENTICATOR_STATE_OBJECT_ID,
                         initial_shared_version: update.authenticator_obj_initial_shared_version,
-                        mutable: true,
+                        mutability: sui_types::transaction::SharedObjectMutability::Mutable,
                     }),
                     CallArg::Pure(bcs::to_bytes(&update.new_active_jwks).unwrap()),
                 ],
@@ -1342,7 +1341,7 @@ mod checked {
                     CallArg::Object(ObjectArg::SharedObject {
                         id: SUI_AUTHENTICATOR_STATE_OBJECT_ID,
                         initial_shared_version: expire.authenticator_obj_initial_shared_version,
-                        mutable: true,
+                        mutability: sui_types::transaction::SharedObjectMutability::Mutable,
                     }),
                     CallArg::Pure(bcs::to_bytes(&expire.min_epoch).unwrap()),
                 ],
@@ -1373,7 +1372,7 @@ mod checked {
                     CallArg::Object(ObjectArg::SharedObject {
                         id: SUI_RANDOMNESS_STATE_OBJECT_ID,
                         initial_shared_version: update.randomness_obj_initial_shared_version,
-                        mutable: true,
+                        mutability: sui_types::transaction::SharedObjectMutability::Mutable,
                     }),
                     CallArg::Pure(bcs::to_bytes(&update.randomness_round).unwrap()),
                     CallArg::Pure(bcs::to_bytes(&update.random_bytes).unwrap()),
