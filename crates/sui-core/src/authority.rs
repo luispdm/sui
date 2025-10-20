@@ -5414,8 +5414,11 @@ impl AuthorityState {
         &self,
         epoch_store: &Arc<AuthorityPerEpochStore>,
     ) -> Option<EndOfEpochTransactionKind> {
-        if !epoch_store.protocol_config().enable_accumulators() {
-            info!("accumulator root not enabled");
+        if !epoch_store
+            .protocol_config()
+            .create_root_accumulator_object()
+        {
+            info!("accumulator root creation not enabled");
             return None;
         }
 
@@ -5735,7 +5738,7 @@ impl AuthorityState {
         // since system packages are created during the current epoch, they should abide by the
         // rules of the current epoch, including the current epoch's max Move binary format version
         let config = epoch_store.protocol_config();
-        let binary_config = config.binary_config();
+        let binary_config = config.binary_config(None);
         let Some(next_epoch_system_package_bytes) = self
             .get_system_package_bytes(next_epoch_system_packages.clone(), &binary_config)
             .await

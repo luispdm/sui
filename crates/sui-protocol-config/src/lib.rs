@@ -23,7 +23,7 @@ use tracing::{info, warn};
 
 /// The minimum and maximum protocol versions supported by this build.
 const MIN_PROTOCOL_VERSION: u64 = 1;
-const MAX_PROTOCOL_VERSION: u64 = 99;
+const MAX_PROTOCOL_VERSION: u64 = 100;
 
 // Record history of protocol version allocations here:
 //
@@ -272,6 +272,7 @@ const MAX_PROTOCOL_VERSION: u64 = 99;
 // Version 98: Add authenticated event streams support via emit_authenticated function.
 //             Add better error messages to the loader.
 // Version 99: Enable new commit handler.
+// Version 100: Framework update
 
 #[derive(Copy, Clone, Debug, Hash, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ProtocolVersion(u64);
@@ -286,7 +287,7 @@ impl ProtocolVersion {
     pub const MAX: Self = Self(MAX_PROTOCOL_VERSION);
 
     #[cfg(not(msim))]
-    const MAX_ALLOWED: Self = Self::MAX;
+    pub const MAX_ALLOWED: Self = Self::MAX;
 
     // We create one additional "fake" version in simulator builds so that we can test upgrades.
     #[cfg(msim)]
@@ -304,6 +305,10 @@ impl ProtocolVersion {
     // universally appropriate default value.
     pub fn max() -> Self {
         Self::MAX
+    }
+
+    pub fn prev(self) -> Self {
+        Self(self.0.checked_sub(1).unwrap())
     }
 }
 
@@ -752,6 +757,11 @@ struct FeatureFlags {
     #[serde(skip_serializing_if = "is_false")]
     enable_accumulators: bool,
 
+    // If true, create the root accumulator object in the change epoch transaction.
+    // This must be enabled and shipped before `enable_accumulators` is set to true.
+    #[serde(skip_serializing_if = "is_false")]
+    create_root_accumulator_object: bool,
+
     // Enable authenticated event streams
     #[serde(skip_serializing_if = "is_false")]
     enable_authenticated_event_streams: bool,
@@ -854,6 +864,10 @@ struct FeatureFlags {
     // Enable display registry protocol
     #[serde(skip_serializing_if = "is_false")]
     enable_display_registry: bool,
+
+    // If true, deprecate global storage ops during Move module deserialization
+    #[serde(skip_serializing_if = "is_false")]
+    deprecate_global_storage_ops_during_deserialization: bool,
 }
 
 fn is_false(b: &bool) -> bool {
@@ -1958,6 +1972,10 @@ impl ProtocolConfig {
         self.feature_flags.enable_accumulators
     }
 
+    pub fn create_root_accumulator_object(&self) -> bool {
+        self.feature_flags.create_root_accumulator_object
+    }
+
     pub fn enable_address_balance_gas_payments(&self) -> bool {
         self.feature_flags.enable_address_balance_gas_payments
     }
@@ -2302,6 +2320,11 @@ impl ProtocolConfig {
 
     pub fn allow_references_in_ptbs(&self) -> bool {
         self.feature_flags.allow_references_in_ptbs
+    }
+
+    pub fn deprecate_global_storage_ops_during_deserialization(&self) -> bool {
+        self.feature_flags
+            .deprecate_global_storage_ops_during_deserialization
     }
 }
 
@@ -4108,7 +4131,9 @@ impl ProtocolConfig {
                 }
                 99 => {
                     cfg.feature_flags.use_new_commit_handler = true;
+                    cfg.feature_flags.create_root_accumulator_object = true;
                 }
+                100 => {}
                 // Use this template when making changes:
                 //
                 //     // modify an existing constant.
@@ -4188,12 +4213,19 @@ impl ProtocolConfig {
         }
     }
 
-    pub fn binary_config(&self) -> BinaryConfig {
+    pub fn binary_config(
+        &self,
+        override_deprecate_global_storage_ops_during_deserialization: Option<bool>,
+    ) -> BinaryConfig {
+        let deprecate_global_storage_ops_during_deserialization =
+            override_deprecate_global_storage_ops_during_deserialization
+                .unwrap_or_else(|| self.deprecate_global_storage_ops_during_deserialization());
         BinaryConfig::new(
             self.move_binary_format_version(),
             self.min_move_binary_format_version_as_option()
                 .unwrap_or(VERSION_1),
             self.no_extraneous_module_bytes(),
+            deprecate_global_storage_ops_during_deserialization,
             TableConfig {
                 module_handles: self.binary_module_handles_as_option().unwrap_or(u16::MAX),
                 datatype_handles: self.binary_struct_handles_as_option().unwrap_or(u16::MAX),
@@ -4382,7 +4414,10 @@ impl ProtocolConfig {
 
     pub fn enable_accumulators_for_testing(&mut self) {
         self.feature_flags.enable_accumulators = true;
-        self.feature_flags.allow_private_accumulator_entrypoints = true;
+    }
+
+    pub fn create_root_accumulator_object_for_testing(&mut self) {
+        self.feature_flags.create_root_accumulator_object = true;
     }
 
     pub fn enable_address_balance_gas_payments_for_testing(&mut self) {

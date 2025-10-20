@@ -770,7 +770,7 @@ mod checked {
                             builder = setup_store_execution_time_estimates(builder, estimates);
                         }
                         EndOfEpochTransactionKind::AccumulatorRootCreate => {
-                            assert!(protocol_config.enable_accumulators());
+                            assert!(protocol_config.create_root_accumulator_object());
                             builder = setup_accumulator_root_create(builder);
                         }
                         EndOfEpochTransactionKind::CoinRegistryCreate => {
@@ -1075,7 +1075,7 @@ mod checked {
         trace_builder_opt: &mut Option<MoveTraceBuilder>,
     ) {
         let digest = tx_ctx.borrow().digest();
-        let binary_config = protocol_config.binary_config();
+        let binary_config = protocol_config.binary_config(None);
         for (version, modules, dependencies) in change_epoch.system_packages.into_iter() {
             let deserialized_modules: Vec<_> = modules
                 .iter()
