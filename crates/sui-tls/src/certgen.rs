@@ -12,6 +12,11 @@ pub struct SelfSignedCertificate {
     key: KeyPair,
 }
 
+pub enum CertType {
+    NoAuth,
+    ClientAuth,
+}
+
 impl SelfSignedCertificate {
     pub fn new(private_key: Ed25519PrivateKey, server_name: &str) -> Self {
         let (cert, key) = generate_self_signed_tls_certificate(private_key, server_name);
@@ -22,12 +27,13 @@ impl SelfSignedCertificate {
         self.inner.der().to_owned()
     }
 
-    pub fn store_cert_with_key(&self, path: &str, sui_address: Option<sui_types::base_types::SuiAddress>) -> std::io::Result<()> {
-        let path = path.trim_end_matches('/');
-        match sui_address {
-            Some(addr) => std::fs::write(format!("{path}/{addr}.pem"), self.inner.pem() + &self.key.serialize_pem()),
-            None => std::fs::write(format!("{path}/validator_cert.pem"), self.inner.pem() + &self.key.serialize_pem())
-        }
+    pub fn store_cert_with_key(&self, folder: &str, name: &str, cert_type: CertType) -> std::io::Result<()> {
+        let path = folder.trim_end_matches('/');
+        let path = match cert_type {
+          CertType::NoAuth => format!("{path}/{name}.pem"),
+          CertType::ClientAuth => format!("{path}/{name}-mTLS.pem"),
+        };
+        std::fs::write(path, self.inner.pem() + &self.key.serialize_pem())
     }
 
     pub fn rustls_private_key(&self) -> PrivateKeyDer<'static> {

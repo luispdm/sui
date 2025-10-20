@@ -61,16 +61,27 @@ fn create_key_logger() -> Option<Arc<dyn KeyLog>> {
     }
 }
 
+fn get_certificate_name(certificate: &SelfSignedCertificate) -> String {
+    match certgen::public_key_from_certificate(&certificate.rustls_certificate()) {
+        Ok(key) => format!("{key}").replace("/", ""), // string repr of public key might contain "/"
+        _ => "validator_certificate".to_string()
+    }
+}
+
 pub fn create_rustls_server_config(
     private_key: Ed25519PrivateKey,
     server_name: String,
-    sui_address: Option<sui_types::base_types::SuiAddress>,
-) -> ServerConfig {
+    cert_name: Option<String>,) -> ServerConfig {
     // TODO: refactor to use key bytes
     let self_signed_cert = SelfSignedCertificate::new(private_key, server_name.as_str());
 
     if let Ok(path) = std::env::var("CERT_FOLDER") {
-        match self_signed_cert.store_cert_with_key(path.as_str(), sui_address) {
+        let cert_name = match cert_name {
+            Some(n) => n,
+            _ => get_certificate_name(&self_signed_cert),
+        };
+
+        match self_signed_cert.store_cert_with_key(path.as_str(), &cert_name, certgen::CertType::NoAuth) {
             Ok(_) => tracing::info!(target: "SF", "sui-tls::lib::create_rustls_server_config validator certificate and private key stored to \"{path}\""),
             Err(e) => tracing::error!(target: "SF", "sui-tls::lib::create_rustls_server_config cannot store validator certificate and private key to \"{path}\": {e}"),
         }
@@ -105,6 +116,14 @@ pub fn create_rustls_server_config_with_client_verifier<A: Allower + 'static>(
     let verifier = ClientCertVerifier::new(allower, server_name.clone());
     // TODO: refactor to use key bytes
     let self_signed_cert = SelfSignedCertificate::new(private_key, server_name.as_str());
+
+    if let Ok(path) = std::env::var("CERT_FOLDER") {
+        match self_signed_cert.store_cert_with_key(path.as_str(), &get_certificate_name(&self_signed_cert), certgen::CertType::ClientAuth) {
+            Ok(_) => tracing::info!(target: "SF", "sui-tls::lib::create_rustls_server_config_with_client_verifier validator certificate and private key stored to \"{path}\""),
+            Err(e) => tracing::error!(target: "SF", "sui-tls::lib::create_rustls_server_config_with_client_verifier cannot store validator certificate and private key to \"{path}\": {e}"),
+        }
+    }
+
     let tls_cert = self_signed_cert.rustls_certificate();
     let tls_private_key = self_signed_cert.rustls_private_key();
     let mut tls_config = verifier
