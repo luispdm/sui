@@ -242,15 +242,7 @@ impl CheckpointStoreTables {
                     true,
                 )),
             ),
-            (
-                "certified_checkpoints",
-                config_u64.clone().with_config(apply_relocation_filter(
-                    override_dirty_keys_config.clone(),
-                    pruner_watermarks.checkpoint_id.clone(),
-                    |checkpoint: TrustedCheckpoint| checkpoint.inner().epoch,
-                    false,
-                )),
-            ),
+            ("certified_checkpoints", config_u64.clone()),
             (
                 "checkpoint_by_digest",
                 digest_config.clone().with_config(apply_relocation_filter(
@@ -2912,6 +2904,7 @@ pub trait CheckpointServiceNotify {
     fn notify_checkpoint(&self) -> SuiResult;
 }
 
+#[allow(clippy::large_enum_variant)]
 enum CheckpointServiceState {
     Unstarted(
         (

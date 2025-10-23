@@ -1011,7 +1011,7 @@ impl<C: CheckpointServiceNotify + Send + Sync> ConsensusHandler<C> {
         &self,
         state: &mut CommitHandlerState,
         end_of_publish_transactions: Vec<AuthorityName>,
-    ) -> (bool, Option<RwLockWriteGuard<ReconfigState>>, bool) {
+    ) -> (bool, Option<RwLockWriteGuard<'_, ReconfigState>>, bool) {
         let collected_eop =
             self.process_end_of_publish_transactions(state, end_of_publish_transactions);
         if collected_eop {
@@ -1840,7 +1840,7 @@ impl<C: CheckpointServiceNotify + Send + Sync> ConsensusHandler<C> {
         &self,
         state: &mut CommitHandlerState,
     ) -> (
-        RwLockWriteGuard<ReconfigState>,
+        RwLockWriteGuard<'_, ReconfigState>,
         bool, // true if final round
     ) {
         let mut reconfig_state = self.epoch_store.get_reconfig_state_write_lock_guard();
@@ -2994,6 +2994,7 @@ pub struct SequencedConsensusTransaction {
 }
 
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum SequencedConsensusTransactionKind {
     External(ConsensusTransaction),
     System(VerifiedExecutableTransaction),
@@ -3018,6 +3019,7 @@ impl<'de> Deserialize<'de> for SequencedConsensusTransactionKind {
 // VerifiedExecutableTransaction, which is not serializable (by design). This wrapper allows us to
 // convert to a serializable format easily.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(clippy::large_enum_variant)]
 enum SerializableSequencedConsensusTransactionKind {
     External(ConsensusTransaction),
     System(TrustedExecutableTransaction),
