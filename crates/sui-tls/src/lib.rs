@@ -15,8 +15,8 @@ pub use acceptor::{TlsAcceptor, TlsConnectionInfo};
 pub use certgen::SelfSignedCertificate;
 use rustls::ClientConfig;
 pub use verifier::{
-    public_key_from_certificate, AllowAll, AllowPublicKeys, Allower, ClientCertVerifier,
-    ServerCertVerifier,
+    AllowAll, AllowPublicKeys, Allower, ClientCertVerifier, ServerCertVerifier,
+    public_key_from_certificate,
 };
 
 pub use rustls;
@@ -144,7 +144,7 @@ pub fn create_rustls_client_config(
     client_key: Option<Ed25519PrivateKey>, // optional self-signed cert for client verification
 ) -> ClientConfig {
     let tls_config = ServerCertVerifier::new(target_public_key, server_name.clone());
-    let mut tls_config = if let Some(private_key) = client_key {
+    if let Some(private_key) = client_key {
         let self_signed_cert = SelfSignedCertificate::new(private_key, server_name.as_str());
         let tls_cert = self_signed_cert.rustls_certificate();
         let tls_private_key = self_signed_cert.rustls_private_key();
@@ -152,13 +152,7 @@ pub fn create_rustls_client_config(
     } else {
         tls_config.rustls_client_config_with_no_client_auth()
     }
-    .unwrap_or_else(|e| panic!("Failed to create TLS client config: {e:?}"));
-
-    if let Some(key_logger) = create_key_logger() {
-        tls_config.key_log = key_logger;
-    }
-
-    tls_config
+    .unwrap_or_else(|e| panic!("Failed to create TLS client config: {e:?}"))
 }
 
 #[cfg(test)]
